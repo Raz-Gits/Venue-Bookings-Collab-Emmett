@@ -1,5 +1,5 @@
 /* ============================================================
-   BOOKOUT demo — all data & messaging simulated.
+   BOOKOUT demo · all data and messaging simulated.
    Real quote window: 1 hour. Demo window: 60s (1 min = 1 hr).
    ============================================================ */
 
@@ -32,7 +32,7 @@ const INCLUDES_POOL = [
 ];
 
 const NOTES_POOL = [
-  "We'll take care of your group — ask for me at the door.",
+  "We'll take care of your group, ask for me at the door.",
   "Big night this week, this table will go fast.",
   "Can add a birthday setup at no charge.",
   "Best view in the room, trust me.",
@@ -61,8 +61,11 @@ const state = {
   booked: null,
   timers: [],
   tick: null,
-  promoterScreen: "sms",
 };
+
+const WAITING_HTML =
+  `<div class="pulse-dot"></div>` +
+  `<p>Waiting for the first quote…<br><small>Promoters are typing. Try the <b>Promoter view</b> ↗ to send one yourself.</small></p>`;
 
 const $ = (id) => document.getElementById(id);
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -84,7 +87,10 @@ const roundTo = (n, step) => Math.round(n / step) * step;
   $("logoHome").addEventListener("click", resetAll);
   $("btnNewSearch").addEventListener("click", resetAll);
   document.querySelectorAll(".btn-back").forEach((b) =>
-    b.addEventListener("click", () => showScreen(b.dataset.back))
+    b.addEventListener("click", () => {
+      if (b.dataset.back === "browse") { state.requestOpen = false; stopClock(); }
+      showScreen(b.dataset.back);
+    })
   );
 
   renderGrid();
@@ -202,13 +208,12 @@ function startRequest() {
   const pn = parseInt($("fPartyNum").value, 10);
   if (Number.isFinite(pn)) state.party = Math.min(2000, Math.max(1, pn));
 
-  clearTimers();
+  stopClock(); // clear any prior interval + pending auto-quotes before a fresh run
   state.quotes = [];
   state.booked = null;
   state.humanQuoted = false;
   state.requestOpen = true;
   state.windowEndsAt = Date.now() + WINDOW_MS;
-  state.promoterScreen = "sms";
 
   const ids = [...state.selected];
   state.humanVenueId = ids[rand(0, ids.length - 1)]; // reserved for the human promoter
@@ -230,6 +235,7 @@ function startRequest() {
   $("boardSummary").textContent = summaryText();
   $("boardTitle").textContent = "Quotes are coming in";
   $("repliedCount").textContent = "0 replied";
+  $("quotesEmpty").innerHTML = WAITING_HTML;
   $("quotesEmpty").classList.remove("hidden");
   $("ring").classList.remove("closed", "urgent");
   $("ringLabel").textContent = "left to quote";
@@ -286,19 +292,20 @@ function addQuote(q) {
 }
 
 function tickWindow() {
+  if (!state.requestOpen) { stopClock(); return; } // guard against orphaned intervals
   const left = state.windowEndsAt - Date.now();
   const ring = $("ring");
   if (left <= 0) {
     state.requestOpen = false;
-    clearInterval(state.tick);
+    stopClock();
     ring.classList.add("closed");
     ring.classList.remove("urgent");
     ring.style.setProperty("--p", 0);
     $("ringTime").textContent = "0:00";
     $("ringLabel").textContent = "window closed";
     $("boardTitle").textContent = state.quotes.length
-      ? "Quoting closed — compare & book"
-      : "Quoting closed — no replies";
+      ? "Quoting closed · compare and book"
+      : "Quoting closed · no replies";
     renderQuotes();
     renderPhone();
     return;
@@ -328,7 +335,13 @@ function bindBoard() {
 function renderQuotes() {
   const list = $("quotesList");
   list.querySelectorAll(".quote-card, .window-closed-note").forEach((n) => n.remove());
-  $("quotesEmpty").classList.toggle("hidden", state.quotes.length > 0);
+  const empty = $("quotesEmpty");
+  empty.classList.toggle("hidden", state.quotes.length > 0);
+  if (state.quotes.length === 0) {
+    empty.innerHTML = state.requestOpen
+      ? WAITING_HTML
+      : `<p>No promoters replied before the window closed.<br><small>Head back and try more venues or another night.</small></p>`;
+  }
 
   const sorted = [...state.quotes].sort((a, b) =>
     state.sort === "price" ? a.total - b.total :
@@ -408,8 +421,7 @@ function confirmBooking() {
   setTimeout(() => {
     state.booked = q.id;
     state.requestOpen = false;
-    clearTimers();
-    clearInterval(state.tick);
+    stopClock();
 
     const v = venueById(q.venueId);
     const code = "BK-ORL-" + Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -444,87 +456,107 @@ function renderPhone() {
   const screen = $("phoneScreen");
   const v = state.humanVenueId ? venueById(state.humanVenueId) : null;
 
+  // empty state: no live request yet
   if (!v || (!state.requestOpen && !state.humanQuoted && state.quotes.length === 0 && !state.booked)) {
     screen.innerHTML = `
-      <div class="sms-head">Messages · BookOut</div>
-      <div class="sms-empty">No requests yet.<br><br>Close this panel and send a booking request as a customer — the text will land here.</div>`;
+      <div class="pa">
+        <div class="pa-top"><span class="pa-brand">bookout<i>◈</i> <b>for venues</b></span></div>
+        <div class="pa-empty">No open requests right now.<br><br>Close this panel and send a booking request as a customer. It arrives here as a text and shows up in your venue app.</div>
+      </div>`;
     return;
   }
 
-  if (state.promoterScreen === "form") { renderQuoteForm(screen, v); return; }
+  const budgetLine = state.budget ? `, budget ${budgetLabel(state.budget)}` : "";
+  const smsCopy = `New request on BookOut: ${state.type === "buyout" ? "full venue" : "table"} for ${state.party} on ${fmtDate(state.date)} ${state.time}${budgetLine}. Quote in your app: bkout.app/q/7F3K`;
 
-  const budget = state.budget ? ` Budget ${budgetLabel(state.budget)}.` : "";
-  const linkCode = "7F3K";
-  let html = `
-    <div class="sms-head">Messages · +1 (407) 555-0199 · BookOut</div>
-    <div class="sms-bubble">
-      <b>New request on BookOut◈</b><br>
-      ${state.type === "buyout" ? "Full venue" : "Table"} for ${state.party} · ${fmtDate(state.date)} ${state.time} · ${state.occasion}.${budget}<br>
-      Venue: ${v.name}.<br>
-      ${state.requestOpen ? `Quote here (expires in 1h): <span class="sms-link" id="smsLink">bkout.app/q/${linkCode}</span>` : `<em>Quote link expired.</em>`}
-      <time>now</time>
+  const tag = state.requestOpen
+    ? `<span class="pa-tag open">Open · ${$("ringTime").textContent} left</span>`
+    : `<span class="pa-tag closed">Window closed</span>`;
+
+  const requestCard = `
+    <div class="pa-alert">
+      <div class="pa-alert-ic">📩</div>
+      <div>
+        <b>New request texted to you</b>
+        <span>+1 (407) 555-0199 · also in your app below</span>
+        <div class="pa-sms">"${smsCopy}"</div>
+      </div>
+    </div>
+    <div class="pa-req">
+      <div class="pa-req-head">
+        ${tag}
+        <span class="pa-req-title">${state.type === "buyout" ? "Full venue" : "Table"} request</span>
+      </div>
+      <div class="pa-grid">
+        <div><small>Date</small><b>${fmtDate(state.date)}</b></div>
+        <div><small>Start</small><b>${state.time}</b></div>
+        <div><small>Party</small><b>${state.party} people</b></div>
+        <div><small>Occasion</small><b>${state.occasion}</b></div>
+        <div><small>Area</small><b>${v.area}</b></div>
+        <div><small>Budget</small><b>${state.budget ? budgetLabel(state.budget) : "Open"}</b></div>
+      </div>
     </div>`;
 
+  let body;
   if (state.humanQuoted) {
-    const mine = state.quotes.find((q) => q.source === "human");
-    if (mine) html += `
-      <div class="sms-bubble mine">
-        Quote sent ✓ ${usd.format(mine.total)} · deposit ${usd.format(mine.deposit)}<br>
-        <small>The customer sees it live on their board.</small>
-        <time>now</time>
-      </div>`;
+    body = quoteStatusCard();
+  } else if (!state.requestOpen) {
+    body = `<div class="pa-missed">This request's 1-hour window closed before you quoted.<br>You'll be first to know on the next one.</div>`;
+  } else {
+    body = quoteFormMarkup(v);
   }
-  if (state.booked) {
-    const bq = state.quotes.find((q) => q.id === state.booked);
-    const won = bq && bq.source === "human";
-    html += `
-      <div class="sms-bubble">
-        ${won ? `🎉 <b>You won the booking!</b> Deposit ${usd.format(bq.deposit)} received. See you ${fmtDate(state.date)}.` : `This request was booked with another venue. Better luck tonight!`}
-        <time>now</time>
-      </div>`;
-  }
-
-  screen.innerHTML = html;
-  const link = document.getElementById("smsLink");
-  if (link) link.addEventListener("click", () => { state.promoterScreen = "form"; renderPhone(); });
-}
-
-function renderQuoteForm(screen, v) {
-  if (!state.requestOpen) {
-    screen.innerHTML = `
-      <div class="qform-head">bkout.app/q/7F3K</div>
-      <div class="qform-closed">⏱ The 1-hour quote window has closed.<br>This link is no longer active.</div>`;
-    return;
-  }
-  if (state.humanQuoted) {
-    screen.innerHTML = `
-      <div class="qform-head">bkout.app/q/7F3K · <b>sent ✓</b></div>
-      <div class="qform-closed">Your quote is live.<br>Watch the customer's board to see if you win it.</div>`;
-    return;
-  }
-
-  const band = state.type === "buyout" ? v.buyout : v.band;
-  const suggested = roundTo((band[0] + band[1]) / 2, 25);
 
   screen.innerHTML = `
-    <div class="qform-head">bkout.app/q/7F3K · no login needed</div>
-    <div class="qform">
-      <h4>Quote this request</h4>
-      <p>${v.name} · ${state.type === "buyout" ? "full venue" : "table"} for ${state.party} · ${fmtDate(state.date)} ${state.time}${state.budget ? ` · budget ${budgetLabel(state.budget)}` : ""}</p>
-      <label class="field"><span>Total price ($)</span>
-        <input type="number" id="qfPrice" value="${suggested}" min="50" step="25" inputmode="numeric"></label>
-      <label class="field"><span>Deposit required ($)</span>
-        <input type="number" id="qfDeposit" value="${roundTo(suggested * 0.2, 10)}" min="10" step="10" inputmode="numeric"></label>
-      <div class="field"><span>What's included</span>
-        <div class="chips" id="qfIncludes">
-          ${INCLUDES_POOL.slice(0, 6).map((inc, i) => `<button type="button" class="chip ${i < 2 ? "active" : ""}" data-inc="${inc}">${inc}</button>`).join("")}
-        </div>
-      </div>
-      <label class="field"><span>Note to customer</span>
-        <textarea id="qfNote" placeholder="We'll take care of your group…"></textarea></label>
-      <button class="btn-primary" id="qfSend">Send quote</button>
+    <div class="pa">
+      <div class="pa-top"><span class="pa-brand">bookout<i>◈</i> <b>for venues</b></span><span class="pa-venue">${v.name}</span></div>
+      <div class="pa-body">${requestCard}${body}</div>
     </div>`;
 
+  if (!state.humanQuoted && state.requestOpen) wireQuoteForm(v);
+}
+
+function quoteStatusCard() {
+  const mine = state.quotes.find((q) => q.source === "human");
+  let status = `<div class="pa-status live">Live on the customer's board. Waiting to hear back.</div>`;
+  if (state.booked) {
+    const bq = state.quotes.find((q) => q.id === state.booked);
+    status = bq && bq.source === "human"
+      ? `<div class="pa-status won">🎉 You won the booking. Deposit ${usd.format(bq.deposit)} received.</div>`
+      : `<div class="pa-status lost">Booked with another venue this time. Better luck tonight.</div>`;
+  }
+  return `
+    <div class="pa-sent">
+      <div class="pa-section-title">Your quote</div>
+      <div class="pa-sent-row"><span>Total</span><b>${mine ? usd.format(mine.total) : ""}</b></div>
+      <div class="pa-sent-row"><span>Deposit</span><b>${mine ? usd.format(mine.deposit) : ""}</b></div>
+      ${status}
+    </div>`;
+}
+
+function quoteFormMarkup(v) {
+  const band = state.type === "buyout" ? v.buyout : v.band;
+  const suggested = roundTo((band[0] + band[1]) / 2, 25);
+  return `
+    <div class="pa-form">
+      <div class="pa-section-title">Send your quote</div>
+      <div class="qform">
+        <label class="field"><span>Total price ($)</span>
+          <input type="number" id="qfPrice" value="${suggested}" min="50" step="25" inputmode="numeric"></label>
+        <label class="field"><span>Deposit required ($)</span>
+          <input type="number" id="qfDeposit" value="${roundTo(suggested * 0.2, 10)}" min="10" step="10" inputmode="numeric"></label>
+        <div class="field"><span>What's included</span>
+          <div class="chips" id="qfIncludes">
+            ${INCLUDES_POOL.slice(0, 6).map((inc, i) => `<button type="button" class="chip ${i < 2 ? "active" : ""}" data-inc="${inc}">${inc}</button>`).join("")}
+          </div>
+        </div>
+        <label class="field"><span>Note to customer</span>
+          <textarea id="qfNote" placeholder="We'll take care of your group, ask for me at the door."></textarea></label>
+        <button class="btn-primary" id="qfSend">Send quote</button>
+      </div>
+    </div>`;
+}
+
+function wireQuoteForm(v) {
   document.getElementById("qfPrice").addEventListener("input", (e) => {
     const p = Number(e.target.value) || 0;
     document.getElementById("qfDeposit").value = roundTo(p * 0.2, 10);
@@ -539,7 +571,6 @@ function renderQuoteForm(screen, v) {
     const includes = [...document.querySelectorAll("#qfIncludes .chip.active")].map((c) => c.dataset.inc);
     const note = document.getElementById("qfNote").value.trim();
     state.humanQuoted = true;
-    state.promoterScreen = "sms";
     addQuote({
       id: "q_human_" + Date.now(),
       venueId: v.id,
@@ -563,21 +594,25 @@ function showScreen(name) {
 }
 
 function resetAll() {
-  clearTimers();
-  clearInterval(state.tick);
-  state.quotes = [];
   state.requestOpen = false;
+  stopClock();
+  state.quotes = [];
   state.booked = null;
   state.humanVenueId = null;
   state.humanQuoted = false;
-  state.promoterScreen = "sms";
   $("promoterDot").classList.remove("live");
-  $("promoterVenueName").textContent = "—";
+  $("promoterVenueName").textContent = "…";
   $("ring").classList.remove("closed", "urgent");
   $("ringLabel").textContent = "left to quote";
   togglePanel(false);
   renderGrid();
   showScreen("browse");
+}
+
+function stopClock() {
+  clearInterval(state.tick);
+  state.tick = null;
+  clearTimers();
 }
 
 function clearTimers() {
