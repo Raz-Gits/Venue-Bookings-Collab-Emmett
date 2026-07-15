@@ -40,4 +40,4 @@ A nightlife booking marketplace: customers request a table or full-venue buyout 
 ## People
 
 - Raz — [@Raz-Gits](https://github.com/Raz-Gits)
-- Emmett — *(GitHub invite pending — need username/email)*
+- Emmett — [@emmettrosenblum-dot](https://github.com/emmettrosenblum-dot)

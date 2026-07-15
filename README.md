@@ -39,4 +39,4 @@ Every push to `main` auto-deploys after that. (Alternative: drag-and-drop this f
 ## People
 
 - Raz — [@Raz-Gits](https://github.com/Raz-Gits)
-- Emmett — *(GitHub invite pending)*
+- Emmett — [@emmettrosenblum-dot](https://github.com/emmettrosenblum-dot)
