@@ -4,24 +4,21 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>BookOut — every venue answers</title>
-<meta name="description" content="Request a table or full venue buyout once. Every venue in the area quotes you. Compare and book — Orlando nightlife demo." />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✶</text></svg>" />
+<meta name="description" content="Browse Orlando venues, pick the ones you want, tell them your headcount, and every promoter quotes you on a countdown. Compare and book." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◈</text></svg>" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Spline+Sans+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-<div class="glow glow-a" aria-hidden="true"></div>
-<div class="glow glow-b" aria-hidden="true"></div>
-
 <header class="topbar">
   <div class="logo" id="logoHome" role="button" tabindex="0" title="Start over">
-    BOOK<span>OUT</span><i>✶</i>
+    bookout<i>◈</i>
   </div>
   <div class="topbar-right">
-    <span class="badge-demo">DEMO · 1 MIN = 1 HR</span>
+    <span class="badge-demo">Demo · 1 min = 1 hr</span>
     <button class="btn-promoter" id="btnPromoter">
       <span class="dot" id="promoterDot"></span> Promoter view
     </button>
@@ -30,105 +27,94 @@
 
 <main id="app">
 
-  <!-- ============ SEARCH ============ -->
-  <section class="screen" id="screen-search">
+  <!-- ============ BROWSE + BUILD REQUEST ============ -->
+  <section class="screen" id="screen-browse">
     <div class="hero">
       <p class="hero-kicker">Orlando nightlife</p>
-      <h1 class="hero-title">One request.<br /><em>Every venue</em> answers.</h1>
-      <p class="hero-sub">Tell us your night. We text every promoter in the area. Quotes land in one hour — you compare, book, and drop a deposit. Free for you, always.</p>
+      <h1 class="hero-title">Pick your venues.<br /><em>Every promoter</em> quotes you.</h1>
+      <p class="hero-sub">Choose the spots you like, tell them your night, and send one request. Quotes land on a one-hour countdown — you compare and book with a deposit. Free for you, always.</p>
     </div>
 
-    <form class="card form" id="searchForm" autocomplete="off">
-      <div class="form-row seg-row">
-        <div class="seg" role="radiogroup" aria-label="Booking type">
-          <button type="button" class="seg-opt active" data-type="table">Table</button>
-          <button type="button" class="seg-opt" data-type="buyout">Full buyout</button>
-        </div>
-      </div>
+    <div class="prod-tabs" role="tablist" aria-label="Booking type">
+      <button type="button" class="prod-tab active" data-type="table" role="tab">
+        <svg viewBox="0 0 24 24"><path d="M4 10h16M4 10a8 8 0 0116 0M12 10v10M8 20h8"/></svg>
+        Tables
+      </button>
+      <button type="button" class="prod-tab" data-type="buyout" role="tab">
+        <svg viewBox="0 0 24 24"><path d="M4 21V6l8-3 8 3v15M4 21h16M9 21v-5h6v5M8 9h.01M12 9h.01M16 9h.01M8 13h.01M16 13h.01"/></svg>
+        Full buyout
+      </button>
+    </div>
 
-      <div class="form-grid">
-        <label class="field">
-          <span>Area</span>
-          <select id="fArea">
-            <option value="all">All Orlando</option>
-            <option value="Downtown">Downtown</option>
-            <option value="I-Drive">I-Drive</option>
-            <option value="Thornton Park">Thornton Park</option>
-            <option value="Mills 50">Mills 50</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Date</span>
-          <input type="date" id="fDate" required />
-        </label>
-        <label class="field">
-          <span>Start time</span>
-          <select id="fTime">
-            <option>9:00 PM</option>
-            <option selected>10:00 PM</option>
-            <option>11:00 PM</option>
-            <option>12:00 AM</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Party size</span>
-          <div class="stepper">
-            <button type="button" id="stepDown" aria-label="Fewer people">−</button>
-            <output id="fParty">8</output>
-            <button type="button" id="stepUp" aria-label="More people">+</button>
-          </div>
-        </label>
-        <label class="field field-wide">
-          <span>Occasion</span>
-          <select id="fOccasion">
-            <option>Birthday</option>
-            <option>Bachelor / bachelorette</option>
-            <option selected>Night out</option>
-            <option>Corporate</option>
-            <option>Celebration</option>
-          </select>
-        </label>
+    <div class="filters" id="filters">
+      <label class="refine-pill">
+        <span>Where</span>
+        <select id="fArea">
+          <option value="all">All Orlando</option>
+          <option value="Downtown">Downtown</option>
+          <option value="I-Drive">I-Drive</option>
+          <option value="Thornton Park">Thornton Park</option>
+          <option value="Mills 50">Mills 50</option>
+        </select>
+      </label>
+      <label class="refine-pill">
+        <span>When</span>
+        <input type="date" id="fDate" required />
+      </label>
+      <div class="refine-pill guests-pill">
+        <span>Guests</span>
+        <input type="number" id="fPartyNum" class="guests-input" value="8" min="1" max="2000" inputmode="numeric" aria-label="Number of guests" />
+        <em id="guestHint">people</em>
       </div>
-
-      <div class="field field-budget">
-        <span>Budget <em>(optional — venues will see it)</em></span>
+      <label class="refine-pill">
+        <span>Start</span>
+        <select id="fTime">
+          <option>9:00 PM</option>
+          <option selected>10:00 PM</option>
+          <option>11:00 PM</option>
+          <option>12:00 AM</option>
+        </select>
+      </label>
+      <label class="refine-pill">
+        <span>Occasion</span>
+        <select id="fOccasion">
+          <option>Birthday</option>
+          <option>Bachelor / bachelorette</option>
+          <option selected>Night out</option>
+          <option>Corporate</option>
+          <option>Celebration</option>
+        </select>
+      </label>
+      <div class="refine-pill budget-pill">
+        <span>Budget</span>
         <div class="chips" id="budgetChips">
           <button type="button" class="chip" data-budget="500-1000">$500–1k</button>
           <button type="button" class="chip" data-budget="1000-2000">$1k–2k</button>
           <button type="button" class="chip" data-budget="2000-99999">$2k+</button>
-          <button type="button" class="chip active" data-budget="">No budget</button>
+          <button type="button" class="chip active" data-budget="">Any</button>
         </div>
       </div>
-
-      <button type="submit" class="btn-primary btn-big">Find my venues →</button>
-    </form>
-
-    <div class="steps-strip">
-      <div class="step"><b>01</b><p>Send one request to every venue in the area</p></div>
-      <div class="step"><b>02</b><p>Promoters text back real quotes within the hour</p></div>
-      <div class="step"><b>03</b><p>Compare side-by-side, book, deposit. Done.</p></div>
     </div>
-  </section>
 
-  <!-- ============ RESULTS / SELECT ============ -->
-  <section class="screen hidden" id="screen-results">
-    <div class="screen-head">
-      <button class="btn-back" data-back="search">← Edit search</button>
-      <h2 class="screen-title">These venues will get your request</h2>
-      <p class="screen-sub" id="resultsSub"></p>
+    <div class="browse-head">
+      <h2 class="browse-count" id="browseCount"></h2>
+      <p class="browse-hint">Tap a venue to add or remove it from your request.</p>
     </div>
+
     <div class="venue-grid" id="venueGrid"></div>
+
     <div class="sendbar" id="sendbar">
       <div class="sendbar-info">
         <b id="sendCount"></b>
-        <span>Each promoter gets a text with your request</span>
+        <span>Each promoter gets a text and has 1 hour to quote</span>
       </div>
-      <button class="btn-primary" id="btnSend">Request quotes ⚡</button>
+      <button class="btn-primary" id="btnSend">Request quotes</button>
     </div>
   </section>
 
   <!-- ============ LIVE QUOTE BOARD ============ -->
   <section class="screen hidden" id="screen-board">
+    <button class="btn-back" data-back="browse">← Back to venues</button>
     <div class="board-head card">
       <div class="ring-wrap">
         <div class="ring" id="ring"><div class="ring-inner"><span id="ringTime">60:00</span><small id="ringLabel">left to quote</small></div></div>
@@ -141,7 +127,7 @@
     </div>
     <div class="board-tools">
       <span>Sort by</span>
-      <div class="seg seg-small" id="sortSeg">
+      <div class="seg-small" id="sortSeg">
         <button type="button" class="seg-opt active" data-sort="price">Price</button>
         <button type="button" class="seg-opt" data-sort="deposit">Deposit</button>
         <button type="button" class="seg-opt" data-sort="arrival">Newest</button>
@@ -158,13 +144,13 @@
   <!-- ============ CONFIRMATION ============ -->
   <section class="screen hidden" id="screen-confirm">
     <div class="confirm card">
-      <div class="confirm-burst">✶</div>
+      <div class="confirm-burst">✓</div>
       <p class="confirm-kicker">Booked</p>
       <h2 id="confirmVenue"></h2>
       <p class="confirm-code">Confirmation <b id="confirmCode"></b></p>
       <div class="confirm-lines" id="confirmLines"></div>
       <p class="confirm-fine">A text confirmation was sent to your phone <em>(simulated)</em>. Your deposit is credited toward your bill at the venue. BookOut's 10% fee is paid by the venue — you pay $0 in fees.</p>
-      <button class="btn-primary" id="btnNewSearch">Plan another night</button>
+      <button class="btn-primary btn-big" id="btnNewSearch">Plan another night</button>
     </div>
   </section>
 
@@ -174,7 +160,7 @@
 <div class="modal-backdrop hidden" id="bookBackdrop">
   <div class="modal card" role="dialog" aria-modal="true">
     <button class="modal-x" id="bookClose">✕</button>
-    <p class="modal-kicker">Lock it in</p>
+    <p class="modal-kicker">Confirm and pay</p>
     <h3 id="bookVenue"></h3>
     <div class="book-lines" id="bookLines"></div>
     <label class="field">
@@ -182,7 +168,7 @@
       <input type="text" id="bookCard" value="4242 4242 4242 4242" readonly />
     </label>
     <button class="btn-primary btn-big" id="btnPay">Pay deposit <b id="payAmount"></b></button>
-    <p class="modal-fine">Deposit set by the venue and credited toward your bill. Free cancellation window & no-show policy — TBD in PLAN.md.</p>
+    <p class="modal-fine">Deposit is set by the venue and credited toward your bill. Free cancellation window &amp; no-show policy — TBD in PLAN.md.</p>
   </div>
 </div>
 
@@ -196,16 +182,14 @@
   </div>
   <div class="phone">
     <div class="phone-notch"></div>
-    <div class="phone-screen" id="phoneScreen">
-      <!-- filled by JS: SMS thread or quote form -->
-    </div>
+    <div class="phone-screen" id="phoneScreen"></div>
   </div>
 </aside>
 
 <div class="toast hidden" id="toast"></div>
 
 <footer class="foot">
-  <span>BOOKOUT✶ demo — all venues, quotes & texts are simulated · Orlando, FL</span>
+  <span>BookOut◈ demo — all venues, quotes &amp; texts are simulated · Orlando, FL</span>
   <a href="https://github.com/Raz-Gits/Venue-Bookings-Collab-Emmett" target="_blank" rel="noopener">plan &amp; code ↗</a>
 </footer>
 

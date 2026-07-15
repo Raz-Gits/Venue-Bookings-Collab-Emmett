@@ -1,5 +1,5 @@
 /* ============================================================
-   BOOKOUT✶ demo — all data & messaging simulated.
+   BOOKOUT demo — all data & messaging simulated.
    Real quote window: 1 hour. Demo window: 60s (1 min = 1 hr).
    ============================================================ */
 
@@ -9,15 +9,15 @@ const WINDOW_MS = 60_000; // demo: 60s stands in for the real 1-hour window
 const SIM_RATIO = 60;     // 1 real second = 1 simulated minute
 
 const VENUES = [
-  { id: "neon",     name: "Neon Garden",     area: "Downtown",      tags: ["Rooftop", "Open-air"],        band: [600, 1200],  buyout: [6000, 9000],   g: ["#ff3d6e", "#7a1f8f"], glyph: "N" },
-  { id: "velvet",   name: "Velvet Citrus",   area: "Thornton Park", tags: ["Lounge", "Live DJ"],          band: [500, 900],   buyout: [4500, 7000],   g: ["#ffa53d", "#c2264d"], glyph: "V" },
-  { id: "gator",    name: "The Gilded Gator", area: "Downtown",     tags: ["Speakeasy", "Cocktails"],     band: [450, 850],   buyout: [4000, 6500],   g: ["#b8862f", "#3c2a10"], glyph: "G" },
-  { id: "lumen",    name: "LUMEN",           area: "I-Drive",       tags: ["Megaclub", "EDM"],            band: [900, 2000],  buyout: [12000, 18000], g: ["#3d7bff", "#ff3d6e"], glyph: "L" },
-  { id: "static",   name: "Static Room",     area: "Mills 50",      tags: ["Warehouse", "House / techno"],band: [400, 800],   buyout: [3500, 6000],   g: ["#444a63", "#101322"], glyph: "S" },
-  { id: "palma",    name: "Palma Social",    area: "Downtown",      tags: ["Latin", "Reggaeton"],         band: [550, 1000],  buyout: [5000, 8000],   g: ["#ff7a4d", "#8f1f5c"], glyph: "P" },
-  { id: "seven",    name: "Skyline SEVEN",   area: "Downtown",      tags: ["Rooftop", "Skyline views"],   band: [700, 1400],  buyout: [7000, 11000],  g: ["#2fd4c2", "#153a63"], glyph: "7" },
-  { id: "wax",      name: "Basement Wax",    area: "Mills 50",      tags: ["Vinyl bar", "Intimate"],      band: [300, 600],   buyout: [2500, 4500],   g: ["#c2264d", "#26102e"], glyph: "W" },
-  { id: "meridian", name: "Club Meridian",   area: "I-Drive",       tags: ["Bottle service", "Go-go"],    band: [800, 1600],  buyout: [9000, 14000],  g: ["#ffd23d", "#c2264d"], glyph: "M" },
+  { id: "neon",     name: "Neon Garden",      area: "Downtown",      tags: "Rooftop · Open-air",     band: [600, 1200],  buyout: [6000, 9000],   g: ["#ff7a5c", "#c2264d"], glyph: "N", rating: 4.92, fav: true },
+  { id: "velvet",   name: "Velvet Citrus",    area: "Thornton Park", tags: "Lounge · Live DJ",       band: [500, 900],   buyout: [4500, 7000],   g: ["#ffa53d", "#e0563b"], glyph: "V", rating: 4.85, fav: true },
+  { id: "gator",    name: "The Gilded Gator",  area: "Downtown",      tags: "Speakeasy · Cocktails",  band: [450, 850],   buyout: [4000, 6500],   g: ["#c79a3f", "#6b4a1a"], glyph: "G", rating: 4.78, fav: false },
+  { id: "lumen",    name: "LUMEN",            area: "I-Drive",       tags: "Megaclub · EDM",         band: [900, 2000],  buyout: [12000, 18000], g: ["#5b7bff", "#ff3d6e"], glyph: "L", rating: 4.71, fav: false },
+  { id: "static",   name: "Static Room",      area: "Mills 50",      tags: "Warehouse · Techno",     band: [400, 800],   buyout: [3500, 6000],   g: ["#7a8199", "#2b3040"], glyph: "S", rating: 4.88, fav: true },
+  { id: "palma",    name: "Palma Social",     area: "Downtown",      tags: "Latin · Reggaeton",      band: [550, 1000],  buyout: [5000, 8000],   g: ["#ff8a4d", "#b02063"], glyph: "P", rating: 4.83, fav: false },
+  { id: "seven",    name: "Skyline SEVEN",    area: "Downtown",      tags: "Rooftop · Skyline views",band: [700, 1400],  buyout: [7000, 11000],  g: ["#3fd0c2", "#2a5b8f"], glyph: "7", rating: 4.95, fav: true },
+  { id: "wax",      name: "Basement Wax",     area: "Mills 50",      tags: "Vinyl bar · Intimate",   band: [300, 600],   buyout: [2500, 4500],   g: ["#e0563b", "#5c1f3a"], glyph: "W", rating: 4.90, fav: true },
+  { id: "meridian", name: "Club Meridian",    area: "I-Drive",       tags: "Bottle service · Go-go", band: [800, 1600],  buyout: [9000, 14000],  g: ["#ffc23d", "#e0563b"], glyph: "M", rating: 4.76, fav: false },
 ];
 
 const INCLUDES_POOL = [
@@ -44,24 +44,24 @@ const NOTES_POOL = [
 /* ---------- state ---------- */
 
 const state = {
-  type: "table",          // 'table' | 'buyout'
+  type: "table",
   area: "all",
   date: "",
   time: "10:00 PM",
   party: 8,
   occasion: "Night out",
-  budget: "",             // "" or "min-max"
-  selected: new Set(),    // venue ids receiving the request
+  budget: "",
+  selected: new Set(),
   requestOpen: false,
   windowEndsAt: 0,
-  quotes: [],             // {id, venueId, total, deposit, includes[], note, at, source}
+  quotes: [],
   sort: "price",
-  humanVenueId: null,     // the venue "you" play in promoter view
+  humanVenueId: null,
   humanQuoted: false,
-  booked: null,           // quote id
+  booked: null,
   timers: [],
   tick: null,
-  promoterScreen: "sms",  // 'sms' | 'form'
+  promoterScreen: "sms",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -72,33 +72,50 @@ const roundTo = (n, step) => Math.round(n / step) * step;
 /* ---------- boot ---------- */
 
 (function boot() {
-  // default date: next Friday
   const d = new Date();
-  d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7));
+  d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7)); // next Friday
   $("fDate").value = d.toISOString().slice(0, 10);
 
-  bindSearch();
+  bindBrowse();
   bindBoard();
   bindPromoter();
   bindBooking();
 
   $("logoHome").addEventListener("click", resetAll);
   $("btnNewSearch").addEventListener("click", resetAll);
+  document.querySelectorAll(".btn-back").forEach((b) =>
+    b.addEventListener("click", () => showScreen(b.dataset.back))
+  );
+
+  renderGrid();
 })();
 
-/* ---------- search screen ---------- */
+/* ---------- browse screen ---------- */
 
-function bindSearch() {
-  document.querySelectorAll("#searchForm .seg-opt[data-type]").forEach((b) =>
+function bindBrowse() {
+  document.querySelectorAll(".prod-tab").forEach((b) =>
     b.addEventListener("click", () => {
-      document.querySelectorAll("#searchForm .seg-opt[data-type]").forEach((x) => x.classList.remove("active"));
+      document.querySelectorAll(".prod-tab").forEach((x) => x.classList.remove("active"));
       b.classList.add("active");
       state.type = b.dataset.type;
+      $("guestHint").textContent = state.type === "buyout" ? "people (buyout)" : "people";
+      renderGrid();
     })
   );
 
-  $("stepUp").addEventListener("click", () => setParty(state.party + 1));
-  $("stepDown").addEventListener("click", () => setParty(state.party - 1));
+  $("fArea").addEventListener("change", (e) => { state.area = e.target.value; renderGrid(); });
+  $("fDate").addEventListener("change", (e) => { state.date = e.target.value; });
+  $("fTime").addEventListener("change", (e) => { state.time = e.target.value; });
+  $("fOccasion").addEventListener("change", (e) => { state.occasion = e.target.value; });
+
+  $("fPartyNum").addEventListener("input", (e) => {
+    let n = parseInt(e.target.value, 10);
+    if (!Number.isFinite(n)) return;
+    state.party = Math.min(2000, Math.max(1, n));
+  });
+  $("fPartyNum").addEventListener("blur", (e) => {
+    e.target.value = state.party;
+  });
 
   $("budgetChips").addEventListener("click", (e) => {
     const chip = e.target.closest(".chip");
@@ -108,84 +125,85 @@ function bindSearch() {
     state.budget = chip.dataset.budget;
   });
 
-  $("searchForm").addEventListener("submit", (e) => {
-    e.preventDefault();
-    state.area = $("fArea").value;
-    state.date = $("fDate").value;
-    state.time = $("fTime").value;
-    state.occasion = $("fOccasion").value;
-    showResults();
-  });
-
-  document.querySelectorAll(".btn-back").forEach((b) =>
-    b.addEventListener("click", () => showScreen(b.dataset.back))
-  );
+  $("btnSend").addEventListener("click", startRequest);
 }
-
-function setParty(n) {
-  state.party = Math.min(40, Math.max(2, n));
-  $("fParty").textContent = state.party;
-}
-
-/* ---------- results / select ---------- */
 
 function matchedVenues() {
   return VENUES.filter((v) => state.area === "all" || v.area === state.area);
 }
 
-function showResults() {
-  const matches = matchedVenues();
-  state.selected = new Set(matches.map((v) => v.id));
+function renderGrid() {
+  // sync current filter values into state
+  state.date = $("fDate").value;
+  state.time = $("fTime").value;
+  state.occasion = $("fOccasion").value;
 
-  $("resultsSub").textContent =
-    `${state.type === "buyout" ? "Full buyout" : "Table"} · ${fmtDate(state.date)} · ${state.time} · ${state.party} people · ${state.occasion}` +
-    (state.budget ? ` · budget ${budgetLabel(state.budget)}` : "");
+  const matches = matchedVenues();
+  state.selected = new Set(matches.map((v) => v.id)); // all pre-selected
+
+  $("browseCount").textContent =
+    `${matches.length} ${state.type === "buyout" ? "venue" : "venue"}${matches.length === 1 ? "" : "s"}` +
+    (state.area === "all" ? " across Orlando" : ` in ${state.area}`);
 
   const grid = $("venueGrid");
   grid.innerHTML = "";
   matches.forEach((v, i) => {
+    const priceLabel = state.type === "buyout"
+      ? `from ${usd.format(v.buyout[0])}`
+      : `from ${usd.format(v.band[0])}`;
     const card = document.createElement("article");
-    card.className = "venue-card selected";
-    card.style.animationDelay = `${i * 60}ms`;
+    card.className = "v-card selected";
+    card.style.animationDelay = `${i * 45}ms`;
     card.dataset.id = v.id;
     card.innerHTML = `
-      <div class="venue-art" style="background:linear-gradient(135deg,${v.g[0]},${v.g[1]})">${v.glyph}</div>
-      <div class="venue-body">
-        <div class="venue-name">${v.name}</div>
-        <div class="venue-meta">${v.area} · ${state.type === "buyout" ? "buyouts from " + usd.format(v.buyout[0]) : "tables from " + usd.format(v.band[0])}</div>
-        <div class="venue-tags">${v.tags.map((t) => `<span>${t}</span>`).join("")}</div>
+      <div class="v-photo" style="background:linear-gradient(150deg,${v.g[0]},${v.g[1]})">
+        ${v.glyph}
+        ${v.fav ? `<span class="v-fav">Guest favorite</span>` : ""}
+        <button class="v-heart" type="button" aria-label="Add or remove ${v.name}">
+          <svg viewBox="0 0 32 32"><path d="M16 28C7.9 22.7 3 17.9 3 12.4 3 8.3 6.3 5 10.4 5c2.4 0 4.6 1.1 6 2.9C17.7 6.1 19.9 5 22.3 5 26.4 5 29 8.3 29 12.4c0 5.5-4.9 10.3-13 15.6z"/></svg>
+        </button>
       </div>
-      <div class="venue-check">✓</div>`;
-    card.addEventListener("click", () => {
-      if (state.selected.has(v.id)) {
-        state.selected.delete(v.id);
-        card.classList.replace("selected", "deselected");
-      } else {
-        state.selected.add(v.id);
-        card.classList.replace("deselected", "selected");
-      }
-      updateSendbar();
-    });
+      <div class="v-body">
+        <div class="v-top">
+          <span class="v-name">${v.name}</span>
+          <span class="v-rating">${starSvg()} ${v.rating.toFixed(2)}</span>
+        </div>
+        <div class="v-area">${v.area}</div>
+        <div class="v-tags">${v.tags}</div>
+        <div class="v-price"><b>${priceLabel}</b> ${state.type === "buyout" ? "/ buyout" : "/ table"}</div>
+      </div>`;
+    card.addEventListener("click", () => toggleVenue(v.id, card));
     grid.appendChild(card);
   });
 
   updateSendbar();
-  showScreen("results");
+}
+
+function toggleVenue(id, card) {
+  if (state.selected.has(id)) {
+    state.selected.delete(id);
+    card.classList.replace("selected", "unselected");
+  } else {
+    state.selected.add(id);
+    card.classList.replace("unselected", "selected");
+  }
+  updateSendbar();
 }
 
 function updateSendbar() {
   const n = state.selected.size;
   $("sendCount").textContent = n === 0 ? "No venues selected" : `Request quotes from ${n} venue${n > 1 ? "s" : ""}`;
   $("btnSend").disabled = n === 0;
-  $("btnSend").style.opacity = n === 0 ? 0.4 : 1;
 }
 
 /* ---------- request + simulation engine ---------- */
 
-$("btnSend").addEventListener("click", startRequest);
-
 function startRequest() {
   if (state.selected.size === 0) return;
+
+  // final sync of manual guest field
+  const pn = parseInt($("fPartyNum").value, 10);
+  if (Number.isFinite(pn)) state.party = Math.min(2000, Math.max(1, pn));
 
   clearTimers();
   state.quotes = [];
@@ -196,12 +214,10 @@ function startRequest() {
   state.promoterScreen = "sms";
 
   const ids = [...state.selected];
-  // reserve one venue for the human promoter (it never auto-quotes)
-  state.humanVenueId = ids[rand(0, ids.length - 1)];
+  state.humanVenueId = ids[rand(0, ids.length - 1)]; // reserved for the human promoter
   $("promoterVenueName").textContent = venueById(state.humanVenueId).name;
   $("promoterDot").classList.add("live");
 
-  // schedule auto-quotes: ~75% of the other venues reply, at least 2 if possible
   const others = ids.filter((id) => id !== state.humanVenueId);
   let repliers = others.filter(() => Math.random() < 0.75);
   while (repliers.length < Math.min(2, others.length)) {
@@ -214,16 +230,24 @@ function startRequest() {
   });
 
   $("textedCount").textContent = ids.length;
-  $("boardSummary").textContent = $("resultsSub").textContent;
+  $("boardSummary").textContent = summaryText();
   $("boardTitle").textContent = "Quotes are coming in";
+  $("repliedCount").textContent = "0 replied";
   $("quotesEmpty").classList.remove("hidden");
+  $("ring").classList.remove("closed", "urgent");
+  $("ringLabel").textContent = "left to quote";
 
   state.tick = setInterval(tickWindow, 250);
   tickWindow();
   renderQuotes();
   renderPhone();
   showScreen("board");
-  toast(`Request texted to ${ids.length} promoters ⚡`);
+  toast(`Request texted to ${ids.length} promoters`);
+}
+
+function summaryText() {
+  return `${state.type === "buyout" ? "Full buyout" : "Table"} · ${fmtDate(state.date)} · ${state.time} · ${state.party} people · ${state.occasion}` +
+    (state.budget ? ` · budget ${budgetLabel(state.budget)}` : "");
 }
 
 function makeAutoQuote(venueId) {
@@ -231,7 +255,6 @@ function makeAutoQuote(venueId) {
   const band = state.type === "buyout" ? v.buyout : v.band;
   let total = rand(band[0], band[1]);
 
-  // scale tables with party size; nudge toward stated budget
   if (state.type === "table" && state.party > 6) total *= 1 + (state.party - 6) * 0.05;
   if (state.budget) {
     const [lo, hi] = state.budget.split("-").map(Number);
@@ -262,7 +285,7 @@ function addQuote(q) {
   renderQuotes();
   renderPhone();
   $("repliedCount").textContent = `${state.quotes.length} replied`;
-  if (q.source === "human") toast("Your quote is live on the customer's board ✓");
+  if (q.source === "human") toast("Your quote is live on the customer's board");
 }
 
 function tickWindow() {
@@ -284,7 +307,6 @@ function tickWindow() {
     return;
   }
   const frac = left / WINDOW_MS;
-  // display simulated time: 60s real = 60min simulated
   const simSecs = Math.ceil((left / 1000) * SIM_RATIO);
   const mm = Math.floor(simSecs / 60);
   const ss = simSecs % 60;
@@ -322,16 +344,16 @@ function renderQuotes() {
   sorted.forEach((q) => {
     const v = venueById(q.venueId);
     const badges = [];
-    if (state.quotes.length > 1 && q.total === bestPrice) badges.push(`<span class="quote-badge best">best price</span>`);
-    if (state.quotes.length > 1 && q.deposit === lowDep && q.total !== bestPrice) badges.push(`<span class="quote-badge lowdep">lowest deposit</span>`);
-    if (q.source === "human") badges.push(`<span class="quote-badge human">your live quote</span>`);
+    if (state.quotes.length > 1 && q.total === bestPrice) badges.push(`<span class="quote-badge best">Best price</span>`);
+    if (state.quotes.length > 1 && q.deposit === lowDep && q.total !== bestPrice) badges.push(`<span class="quote-badge lowdep">Lowest deposit</span>`);
+    if (q.source === "human") badges.push(`<span class="quote-badge human">Your live quote</span>`);
 
     const card = document.createElement("article");
     card.className = "quote-card";
     card.innerHTML = `
-      <div class="quote-emblem" style="background:linear-gradient(135deg,${v.g[0]},${v.g[1]})">${v.glyph}</div>
+      <div class="quote-emblem" style="background:linear-gradient(150deg,${v.g[0]},${v.g[1]})">${v.glyph}</div>
       <div class="quote-main">
-        <div class="quote-venue">${v.name} ${badges.join("")}</div>
+        <div class="quote-venue">${v.name} <span class="v-rating">${starSvg()} ${v.rating.toFixed(2)}</span> ${badges.join(" ")}</div>
         <div class="quote-includes">${q.includes.join(" · ")}</div>
         ${q.note ? `<div class="quote-note">“${q.note}”</div>` : ""}
       </div>
@@ -347,7 +369,7 @@ function renderQuotes() {
   if (!state.requestOpen && state.quotes.length) {
     const note = document.createElement("div");
     note.className = "window-closed-note";
-    note.textContent = `QUOTE WINDOW CLOSED · ${state.quotes.length} OF ${state.selected.size} VENUES REPLIED`;
+    note.textContent = `Quote window closed · ${state.quotes.length} of ${state.selected.size} venues replied`;
     list.appendChild(note);
   }
 }
@@ -427,8 +449,8 @@ function renderPhone() {
 
   if (!v || (!state.requestOpen && !state.humanQuoted && state.quotes.length === 0 && !state.booked)) {
     screen.innerHTML = `
-      <div class="sms-head">MESSAGES · BOOKOUT</div>
-      <div class="sms-empty">No requests yet.<br><br>Close this panel and submit a booking request as a customer — the text will land here.</div>`;
+      <div class="sms-head">Messages · BookOut</div>
+      <div class="sms-empty">No requests yet.<br><br>Close this panel and send a booking request as a customer — the text will land here.</div>`;
     return;
   }
 
@@ -437,9 +459,9 @@ function renderPhone() {
   const budget = state.budget ? ` Budget ${budgetLabel(state.budget)}.` : "";
   const linkCode = "7F3K";
   let html = `
-    <div class="sms-head">MESSAGES · +1 (407) 555-0199 · BOOKOUT</div>
+    <div class="sms-head">Messages · +1 (407) 555-0199 · BookOut</div>
     <div class="sms-bubble">
-      <b>New request on BOOKOUT✶</b><br>
+      <b>New request on BookOut◈</b><br>
       ${state.type === "buyout" ? "Full buyout" : "Table"} for ${state.party} · ${fmtDate(state.date)} ${state.time} · ${state.occasion}.${budget}<br>
       Venue: ${v.name}.<br>
       ${state.requestOpen ? `Quote here (expires in 1h): <span class="sms-link" id="smsLink">bkout.app/q/${linkCode}</span>` : `<em>Quote link expired.</em>`}
@@ -503,7 +525,7 @@ function renderQuoteForm(screen, v) {
       </div>
       <label class="field"><span>Note to customer</span>
         <textarea id="qfNote" placeholder="We'll take care of your group…"></textarea></label>
-      <button class="btn-primary" id="qfSend">Send quote →</button>
+      <button class="btn-primary" id="qfSend">Send quote</button>
     </div>`;
 
   document.getElementById("qfPrice").addEventListener("input", (e) => {
@@ -557,7 +579,8 @@ function resetAll() {
   $("ring").classList.remove("closed", "urgent");
   $("ringLabel").textContent = "left to quote";
   togglePanel(false);
-  showScreen("search");
+  renderGrid();
+  showScreen("browse");
 }
 
 function clearTimers() {
@@ -565,8 +588,10 @@ function clearTimers() {
   state.timers = [];
 }
 
-function venueById(id) {
-  return VENUES.find((v) => v.id === id);
+function venueById(id) { return VENUES.find((v) => v.id === id); }
+
+function starSvg() {
+  return `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1l2.2 4.5 4.8.7-3.5 3.4.8 4.9L8 12.7 3.7 14.5l.8-4.9L1 6.2l4.8-.7z"/></svg>`;
 }
 
 function fmtDate(iso) {
@@ -580,9 +605,7 @@ function budgetLabel(b) {
   return hi === 99999 ? `$${lo / 1000}k+` : `$${lo >= 1000 ? lo / 1000 + "k" : lo}–$${hi / 1000}k`;
 }
 
-function shuffle(arr) {
-  return [...arr].sort(() => Math.random() - 0.5);
-}
+function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
 
 let toastTimer = null;
 function toast(msg) {
