@@ -44,13 +44,13 @@ const NOTES_POOL = [
 /* ---------- state ---------- */
 
 const state = {
-  type: "table",
+  type: "buyout",         // default tab: Venues (whole-venue buyout)
   area: "all",
   date: "",
   time: "10:00 PM",
   party: 8,
   occasion: "Night out",
-  budget: "",
+  budget: null,           // null = no budget; otherwise a total-dollar number
   selected: new Set(),
   requestOpen: false,
   windowEndsAt: 0,
@@ -98,7 +98,6 @@ function bindBrowse() {
       document.querySelectorAll(".prod-tab").forEach((x) => x.classList.remove("active"));
       b.classList.add("active");
       state.type = b.dataset.type;
-      $("guestHint").textContent = state.type === "buyout" ? "people (buyout)" : "people";
       renderGrid();
     })
   );
@@ -117,12 +116,9 @@ function bindBrowse() {
     e.target.value = state.party;
   });
 
-  $("budgetChips").addEventListener("click", (e) => {
-    const chip = e.target.closest(".chip");
-    if (!chip) return;
-    document.querySelectorAll("#budgetChips .chip").forEach((c) => c.classList.remove("active"));
-    chip.classList.add("active");
-    state.budget = chip.dataset.budget;
+  $("fBudget").addEventListener("input", (e) => {
+    const n = parseInt(e.target.value, 10);
+    state.budget = Number.isFinite(n) && n > 0 ? n : null;
   });
 
   $("btnSend").addEventListener("click", startRequest);
@@ -151,6 +147,7 @@ function renderGrid() {
     const priceLabel = state.type === "buyout"
       ? `from ${usd.format(v.buyout[0])}`
       : `from ${usd.format(v.band[0])}`;
+    const priceSuffix = state.type === "buyout" ? "/ venue" : "/ table";
     const card = document.createElement("article");
     card.className = "v-card selected";
     card.style.animationDelay = `${i * 45}ms`;
@@ -170,7 +167,7 @@ function renderGrid() {
         </div>
         <div class="v-area">${v.area}</div>
         <div class="v-tags">${v.tags}</div>
-        <div class="v-price"><b>${priceLabel}</b> ${state.type === "buyout" ? "/ buyout" : "/ table"}</div>
+        <div class="v-price"><b>${priceLabel}</b> ${priceSuffix}</div>
       </div>`;
     card.addEventListener("click", () => toggleVenue(v.id, card));
     grid.appendChild(card);
@@ -246,7 +243,7 @@ function startRequest() {
 }
 
 function summaryText() {
-  return `${state.type === "buyout" ? "Full buyout" : "Table"} · ${fmtDate(state.date)} · ${state.time} · ${state.party} people · ${state.occasion}` +
+  return `${state.type === "buyout" ? "Full venue" : "Table"} · ${fmtDate(state.date)} · ${state.time} · ${state.party} people · ${state.occasion}` +
     (state.budget ? ` · budget ${budgetLabel(state.budget)}` : "");
 }
 
@@ -257,9 +254,9 @@ function makeAutoQuote(venueId) {
 
   if (state.type === "table" && state.party > 6) total *= 1 + (state.party - 6) * 0.05;
   if (state.budget) {
-    const [lo, hi] = state.budget.split("-").map(Number);
-    const target = Math.min(Math.max(total, lo), hi === 99999 ? total : hi);
-    total = total * 0.4 + target * 0.6;
+    // promoters anchor to the stated total: most land near or just under budget
+    total = total * 0.3 + state.budget * 0.7;
+    total = Math.min(total, state.budget * 1.06);
   }
   total = roundTo(total, 25);
 
@@ -393,7 +390,7 @@ function openBooking(quoteId) {
   const v = venueById(q.venueId);
   $("bookVenue").textContent = v.name;
   $("bookLines").innerHTML = `
-    <div class="bline"><span>${state.type === "buyout" ? "Full venue buyout" : "Table"} · ${state.party} people</span><b>${fmtDate(state.date)} · ${state.time}</b></div>
+    <div class="bline"><span>${state.type === "buyout" ? "Full venue" : "Table"} · ${state.party} people</span><b>${fmtDate(state.date)} · ${state.time}</b></div>
     <div class="bline"><span>Quoted total</span><b>${usd.format(q.total)}</b></div>
     <div class="bline"><span>Includes</span><b>${q.includes.join("<br>")}</b></div>
     <div class="bline total"><span>Deposit due now</span><b>${usd.format(q.deposit)}</b></div>`;
@@ -419,7 +416,7 @@ function confirmBooking() {
     $("confirmVenue").textContent = v.name;
     $("confirmCode").innerHTML = `Confirmation <b>${code}</b>`;
     $("confirmLines").innerHTML = `
-      <div class="bline"><span>${state.type === "buyout" ? "Full buyout" : "Table"} · ${state.party} people · ${state.occasion}</span><b>${fmtDate(state.date)} · ${state.time}</b></div>
+      <div class="bline"><span>${state.type === "buyout" ? "Full venue" : "Table"} · ${state.party} people · ${state.occasion}</span><b>${fmtDate(state.date)} · ${state.time}</b></div>
       <div class="bline"><span>Quoted total</span><b>${usd.format(q.total)}</b></div>
       <div class="bline total"><span>Deposit paid (credited to bill)</span><b>${usd.format(q.deposit)}</b></div>`;
     $("bookBackdrop").classList.add("hidden");
@@ -462,7 +459,7 @@ function renderPhone() {
     <div class="sms-head">Messages · +1 (407) 555-0199 · BookOut</div>
     <div class="sms-bubble">
       <b>New request on BookOut◈</b><br>
-      ${state.type === "buyout" ? "Full buyout" : "Table"} for ${state.party} · ${fmtDate(state.date)} ${state.time} · ${state.occasion}.${budget}<br>
+      ${state.type === "buyout" ? "Full venue" : "Table"} for ${state.party} · ${fmtDate(state.date)} ${state.time} · ${state.occasion}.${budget}<br>
       Venue: ${v.name}.<br>
       ${state.requestOpen ? `Quote here (expires in 1h): <span class="sms-link" id="smsLink">bkout.app/q/${linkCode}</span>` : `<em>Quote link expired.</em>`}
       <time>now</time>
@@ -513,7 +510,7 @@ function renderQuoteForm(screen, v) {
     <div class="qform-head">bkout.app/q/7F3K · no login needed</div>
     <div class="qform">
       <h4>Quote this request</h4>
-      <p>${v.name} · ${state.type === "buyout" ? "full buyout" : "table"} for ${state.party} · ${fmtDate(state.date)} ${state.time}${state.budget ? ` · budget ${budgetLabel(state.budget)}` : ""}</p>
+      <p>${v.name} · ${state.type === "buyout" ? "full venue" : "table"} for ${state.party} · ${fmtDate(state.date)} ${state.time}${state.budget ? ` · budget ${budgetLabel(state.budget)}` : ""}</p>
       <label class="field"><span>Total price ($)</span>
         <input type="number" id="qfPrice" value="${suggested}" min="50" step="25" inputmode="numeric"></label>
       <label class="field"><span>Deposit required ($)</span>
@@ -601,8 +598,7 @@ function fmtDate(iso) {
 }
 
 function budgetLabel(b) {
-  const [lo, hi] = b.split("-").map(Number);
-  return hi === 99999 ? `$${lo / 1000}k+` : `$${lo >= 1000 ? lo / 1000 + "k" : lo}–$${hi / 1000}k`;
+  return usd.format(b); // b is a total-dollar number
 }
 
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }

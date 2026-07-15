@@ -36,13 +36,13 @@
     </div>
 
     <div class="prod-tabs" role="tablist" aria-label="Booking type">
-      <button type="button" class="prod-tab active" data-type="table" role="tab">
+      <button type="button" class="prod-tab active" data-type="buyout" role="tab">
+        <svg viewBox="0 0 24 24"><path d="M4 21V6l8-3 8 3v15M4 21h16M9 21v-5h6v5M8 9h.01M12 9h.01M16 9h.01M8 13h.01M16 13h.01"/></svg>
+        Venues
+      </button>
+      <button type="button" class="prod-tab" data-type="table" role="tab">
         <svg viewBox="0 0 24 24"><path d="M4 10h16M4 10a8 8 0 0116 0M12 10v10M8 20h8"/></svg>
         Tables
-      </button>
-      <button type="button" class="prod-tab" data-type="buyout" role="tab">
-        <svg viewBox="0 0 24 24"><path d="M4 21V6l8-3 8 3v15M4 21h16M9 21v-5h6v5M8 9h.01M12 9h.01M16 9h.01M8 13h.01M16 13h.01"/></svg>
-        Full buyout
       </button>
     </div>
 
@@ -87,12 +87,8 @@
       </label>
       <div class="refine-pill budget-pill">
         <span>Budget</span>
-        <div class="chips" id="budgetChips">
-          <button type="button" class="chip" data-budget="500-1000">$500–1k</button>
-          <button type="button" class="chip" data-budget="1000-2000">$1k–2k</button>
-          <button type="button" class="chip" data-budget="2000-99999">$2k+</button>
-          <button type="button" class="chip active" data-budget="">Any</button>
-        </div>
+        <em class="cur">$</em>
+        <input type="number" id="fBudget" class="budget-input" placeholder="total" min="0" step="50" inputmode="numeric" aria-label="Total budget (optional)" />
       </div>
     </div>
 

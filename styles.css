@@ -194,19 +194,24 @@ body {
   cursor: pointer;
   -webkit-appearance: none; appearance: none;
 }
-.budget-pill { padding-right: 6px; }
 .guests-pill { padding-right: 16px; }
-.guests-pill em { font-style: normal; font-size: 0.85rem; color: var(--muted); }
-.guests-input {
+.budget-pill { padding-right: 16px; gap: 4px; }
+.guests-pill em, .budget-pill .cur { font-style: normal; font-size: 0.85rem; color: var(--muted); }
+.budget-pill .cur { font-weight: 600; }
+.guests-input, .budget-input {
   font-family: var(--font); font-size: 0.9rem; font-weight: 600;
   color: var(--ink);
   background: transparent; border: 0; outline: none;
-  width: 52px; padding: 2px 0;
+  padding: 2px 0;
   -moz-appearance: textfield;
   border-bottom: 1.5px solid var(--ink);
   text-align: center;
 }
-.guests-input::-webkit-inner-spin-button, .guests-input::-webkit-outer-spin-button { opacity: 0.5; }
+.guests-input { width: 52px; }
+.budget-input { width: 74px; text-align: left; }
+.budget-input::placeholder { color: var(--muted-soft); font-weight: 400; }
+.guests-input::-webkit-inner-spin-button, .guests-input::-webkit-outer-spin-button,
+.budget-input::-webkit-inner-spin-button, .budget-input::-webkit-outer-spin-button { opacity: 0.5; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
   font-family: var(--font); font-size: 0.78rem; font-weight: 500;
