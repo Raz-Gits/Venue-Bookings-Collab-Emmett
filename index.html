@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>BookOut · every venue answers</title>
-<meta name="description" content="Browse Orlando venues, pick the ones you want, tell them your headcount, and every promoter quotes you on a countdown. Compare and book." />
+<meta name="description" content="Browse Orlando venues, open one for photos, details, and open nights, then book instantly with a deposit. Midweek and early bookings run cheaper." />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◈</text></svg>" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -31,8 +31,8 @@
   <section class="screen" id="screen-browse">
     <div class="hero">
       <p class="hero-kicker">Orlando nightlife</p>
-      <h1 class="hero-title">Pick your venues.<br /><em>Every promoter</em> quotes you.</h1>
-      <p class="hero-sub">Choose the spots you like, tell them your night, and send one request. Quotes land on a one-hour countdown, and you compare and book with a deposit. Free for you, always.</p>
+      <h1 class="hero-title">Book the night out.<br /><em>Every venue</em>, one tap away.</h1>
+      <p class="hero-sub">Browse Orlando's best rooms, open one to see photos, details, and its open nights, then book instantly with a deposit. Midweek is cheaper and booking early saves more, so shop the dates. Free for you, always.</p>
     </div>
 
     <div class="prod-tabs" role="tablist" aria-label="Booking type">
@@ -57,10 +57,11 @@
           <option value="Mills 50">Mills 50</option>
         </select>
       </label>
-      <label class="refine-pill">
+      <div class="refine-pill when-pill" id="whenPill" role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false">
         <span>When</span>
-        <input type="date" id="fDate" required />
-      </label>
+        <b class="when-label" id="whenLabel">dates</b>
+        <div class="when-pop hidden" id="whenPop" role="dialog" aria-label="Choose your dates"></div>
+      </div>
       <div class="refine-pill guests-pill">
         <span>Guests</span>
         <input type="number" id="fPartyNum" class="guests-input" value="8" min="1" max="2000" inputmode="numeric" aria-label="Number of guests" />
@@ -92,20 +93,26 @@
       </div>
     </div>
 
+    <div class="deal-strip hidden" id="dealStrip" aria-label="Nightly deals across your dates">
+      <div class="deal-strip-head">
+        <b>Nights in your range</b>
+        <span id="dealStripHint"></span>
+      </div>
+      <div class="deal-days" id="dealDays"></div>
+    </div>
+
     <div class="browse-head">
       <h2 class="browse-count" id="browseCount"></h2>
-      <p class="browse-hint">Tap a venue to add or remove it from your request.</p>
+      <p class="browse-hint">Tap a venue to see photos, details, and its open nights.</p>
     </div>
 
     <div class="venue-grid" id="venueGrid"></div>
+  </section>
 
-    <div class="sendbar" id="sendbar">
-      <div class="sendbar-info">
-        <b id="sendCount"></b>
-        <span>Each promoter gets a text and has 1 hour to quote</span>
-      </div>
-      <button class="btn-primary" id="btnSend">Request quotes</button>
-    </div>
+  <!-- ============ VENUE DETAIL ============ -->
+  <section class="screen hidden" id="screen-venue">
+    <button class="btn-back" data-back="browse">← Back to venues</button>
+    <div class="vd" id="vdBody"></div>
   </section>
 
   <!-- ============ LIVE QUOTE BOARD ============ -->

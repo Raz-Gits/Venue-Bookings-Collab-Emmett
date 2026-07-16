@@ -12,18 +12,22 @@ Start manual, get automatic. At launch, a promoter gets a **text plus an in-app 
 
 ## Decisions
 
+> **⚠️ Model change proposed by Emmett (2026-07-15), pending Raz review in PR.**
+> The customer flow is moving from the multi-venue quote blast to an **Airbnb-style browse → venue page → instant book** flow. This overrides the "Request model", "Quote delivery", and "Promoter quoting" rows below and reorders the vision: it jumps straight to the "published live availability, book instantly" destination for the customer side. The quoting engine and playable promoter view still exist in the code but are **dormant** (not on the main path). Raz: please confirm or push back before this merges. The rows below are marked accordingly.
+
 | Decision | Answer |
 |---|---|
 | Working name | **BookOut** |
 | Vertical | Nightlife: bottle-service tables + full-venue buyouts (clubs, lounges, bars) |
 | Launch / demo market | **Orlando** (downtown: Wall Street Plaza, Church Street; I-Drive/Icon Park), prices in USD |
 | Default booking type | **Venues** (full-venue) is the default tab; **Tables** second |
-| Request model | Browse-first: matching venue cards shown immediately, all pre-selected; tap to add/remove, one request goes to the rest |
-| Request fields | Area, date, start time, **guests (manual number, large groups OK)**, occasion, **budget (manual total, visible to promoters)** |
-| Quote delivery | **Live arrival**: quotes appear as promoters reply, with a countdown to window close |
-| Quote window | **1 hour** to answer |
-| Promoter quoting | **Manual at first.** Promoter gets a **text + in-app request view** with an inline quote form (price, deposit, inclusions, note). Automation and published live availability come later |
-| Deposit | **Promoter sets it in the quote**; counts toward the night's bill |
+| Request model | **CHANGED → Airbnb-style.** Browse venue cards, open a venue for photos, details, amenities, and its open nights, then **book a single night instantly with a deposit**. Heart to save favorites. (Was: multi-venue quote blast, all pre-selected, one request to the rest.) |
+| Venue page | Opening a card shows a hero, a photo gallery, blurb, capacity/hours/neighborhood facts, an included-amenities list, and a per-night deal calendar. Picking a night sets the instant price |
+| Request fields | Area, **date range**, start time, **guests (manual number, large groups OK)**, occasion, **budget (manual total, optional)** |
+| Date shopping | **When is a date range, not one date.** A deal calendar shows every night with a demand level (Quiet · Busy · Peak) and a relative price delta. **Midweek is cheaper than Fri/Sat, and an early-bird discount (up to 18%, ~0.6%/day out) rewards booking far ahead.** Cheapest night is pre-picked; the guest books one night |
+| Quote delivery | **DORMANT (was live-arrival quote board).** Instant book replaces the quote wait on the main path. Board code retained pending Raz review |
+| Promoter quoting | **DORMANT (was manual text + in-app quote form).** Retained in code, not on the customer path pending Raz review |
+| Deposit | **20% of the night's total**, credited toward the bill |
 | Revenue | **~10% venue-side commission**, taken out of the deposit. Free for customers |
 | First deploy | **Clickable demo on Netlify, simulated backend.** No real SMS/payments/DB. Quote window compressed to ~1 min; auto-simulated quotes plus a playable promoter view |
 | House style | **No em dashes** in copy. Use middots (·), commas, or colons |

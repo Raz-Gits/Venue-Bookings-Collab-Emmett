@@ -7,6 +7,7 @@
 
 const WINDOW_MS = 60_000; // demo: 60s stands in for the real 1-hour window
 const SIM_RATIO = 60;     // 1 real second = 1 simulated minute
+const EARLY_BIRD_MAX = 0.18; // biggest early-bird discount, reached ~30 days out
 
 const VENUES = [
   { id: "neon",     name: "Neon Garden",      area: "Downtown",      tags: "Rooftop · Open-air",     band: [600, 1200],  buyout: [6000, 9000],   g: ["#ff7a5c", "#c2264d"], glyph: "N", rating: 4.92, fav: true },
@@ -19,6 +20,37 @@ const VENUES = [
   { id: "wax",      name: "Basement Wax",     area: "Mills 50",      tags: "Vinyl bar · Intimate",   band: [300, 600],   buyout: [2500, 4500],   g: ["#e0563b", "#5c1f3a"], glyph: "W", rating: 4.90, fav: true },
   { id: "meridian", name: "Club Meridian",    area: "I-Drive",       tags: "Bottle service · Go-go", band: [800, 1600],  buyout: [9000, 14000],  g: ["#ffc23d", "#e0563b"], glyph: "M", rating: 4.76, fav: false },
 ];
+
+// Extra editorial detail shown on a venue's page. Keyed by venue id.
+const VENUE_INFO = {
+  neon:     { capacity: 220, hours: "8 PM to 2 AM",
+    blurb: "An open-air rooftop draped in string light and greenery, Neon Garden is downtown's warm-weather favorite for sunset sets that roll into late-night dancing.",
+    amenities: ["Open-air rooftop with skyline views", "Retractable weather cover", "Two full bars", "Resident sunset-to-late DJ"] },
+  velvet:   { capacity: 160, hours: "9 PM to 2 AM",
+    blurb: "A plush citrus-and-velvet lounge in Thornton Park, built for conversation early and a packed floor once the live DJ takes over.",
+    amenities: ["Velvet booth seating", "Live DJ nightly", "Craft cocktail program", "Private mezzanine available"] },
+  gator:    { capacity: 90, hours: "7 PM to 2 AM",
+    blurb: "A hidden downtown speakeasy behind an unmarked door, The Gilded Gator pours precise cocktails in low golden light.",
+    amenities: ["Reservation-only entry", "Award-winning cocktail list", "Intimate low-light rooms", "House bartender for your group"] },
+  lumen:    { capacity: 900, hours: "10 PM to 3 AM",
+    blurb: "I-Drive's flagship megaclub, LUMEN is a full production house of lasers, LED walls, and headline EDM talent across three rooms.",
+    amenities: ["Three themed rooms", "Festival-grade sound and lighting", "Bottle service with sparkler presentation", "Skip-the-line group entry"] },
+  static:   { capacity: 350, hours: "10 PM to 4 AM",
+    blurb: "A raw Mills 50 warehouse tuned for techno, Static Room is all concrete, fog, and a sound system you feel in your chest.",
+    amenities: ["Custom warehouse sound system", "Late 4 AM license", "Resident and guest techno DJs", "Open-air smoking courtyard"] },
+  palma:    { capacity: 240, hours: "9 PM to 2 AM",
+    blurb: "Palma Social brings Latin heat downtown, with reggaeton, live percussion, and a floor that does not sit down.",
+    amenities: ["Live percussion with the DJ", "Reggaeton and Latin nights", "Tropical cocktail menu", "Dance-floor tables"] },
+  seven:    { capacity: 180, hours: "8 PM to 2 AM",
+    blurb: "Seven floors up, Skyline SEVEN pairs the best rooftop view in Orlando with bottle service and a polished late-night crowd.",
+    amenities: ["Panoramic rooftop terrace", "Heated glass-rail cabanas", "Premium bottle service", "Golden-hour to late-night sets"] },
+  wax:      { capacity: 70, hours: "7 PM to 1 AM",
+    blurb: "A tiny vinyl-only basement bar in Mills 50, Basement Wax is for people who come for the records and the low-key crowd.",
+    amenities: ["All-vinyl DJ sets", "Curated natural wine and beer", "Intimate 70-seat room", "Bring-a-record guest slots"] },
+  meridian: { capacity: 500, hours: "10 PM to 3 AM",
+    blurb: "Club Meridian is I-Drive's high-gloss bottle-service room, with go-go performers, LED staging, and a see-and-be-seen main floor.",
+    amenities: ["Go-go performers nightly", "Elevated bottle-service booths", "LED stage and runway", "Group host on arrival"] },
+};
 
 const INCLUDES_POOL = [
   "Skip-the-line entry for all guests",
@@ -46,12 +78,15 @@ const NOTES_POOL = [
 const state = {
   type: "buyout",         // default tab: Venues (whole-venue buyout)
   area: "all",
-  date: "",
+  dateStart: "",          // earliest night the guest will consider
+  dateEnd: "",            // latest night the guest will consider
+  date: "",               // the single night they pick within the range
   time: "10:00 PM",
   party: 8,
   occasion: "Night out",
   budget: null,           // null = no budget; otherwise a total-dollar number
-  selected: new Set(),
+  favorites: new Set(),   // venues the guest hearted (cosmetic wishlist)
+  selected: new Set(),    // dormant: used by the legacy multi-venue quote engine
   requestOpen: false,
   windowEndsAt: 0,
   quotes: [],
@@ -77,7 +112,12 @@ const roundTo = (n, step) => Math.round(n / step) * step;
 (function boot() {
   const d = new Date();
   d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7)); // next Friday
-  $("fDate").value = d.toISOString().slice(0, 10);
+  const start = isoOf(d);
+  const end = isoAddDays(start, 13);                        // a two-week window to shop
+  state.dateStart = start;
+  state.dateEnd = end;
+  state.date = cheapestNight(start, end);                   // pre-pick the best deal
+  updateWhenLabel();
 
   bindBrowse();
   bindBoard();
@@ -88,7 +128,7 @@ const roundTo = (n, step) => Math.round(n / step) * step;
   $("btnNewSearch").addEventListener("click", resetAll);
   document.querySelectorAll(".btn-back").forEach((b) =>
     b.addEventListener("click", () => {
-      if (b.dataset.back === "browse") { state.requestOpen = false; stopClock(); }
+      if (b.dataset.back === "browse") { state.requestOpen = false; stopClock(); renderGrid(); }
       showScreen(b.dataset.back);
     })
   );
@@ -109,7 +149,9 @@ function bindBrowse() {
   );
 
   $("fArea").addEventListener("change", (e) => { state.area = e.target.value; renderGrid(); });
-  $("fDate").addEventListener("change", (e) => { state.date = e.target.value; });
+  $("whenPill").addEventListener("click", (e) => { if (!e.target.closest(".when-pop")) toggleWhen(); });
+  $("whenPill").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleWhen(); } });
+  document.addEventListener("click", (e) => { if (!e.target.closest("#whenPill")) closeWhen(); });
   $("fTime").addEventListener("change", (e) => { state.time = e.target.value; });
   $("fOccasion").addEventListener("change", (e) => { state.occasion = e.target.value; });
 
@@ -126,8 +168,6 @@ function bindBrowse() {
     const n = parseInt(e.target.value, 10);
     state.budget = Number.isFinite(n) && n > 0 ? n : null;
   });
-
-  $("btnSend").addEventListener("click", startRequest);
 }
 
 function matchedVenues() {
@@ -136,33 +176,32 @@ function matchedVenues() {
 
 function renderGrid() {
   // sync current filter values into state
-  state.date = $("fDate").value;
   state.time = $("fTime").value;
   state.occasion = $("fOccasion").value;
+  renderDealStrip();
 
+  const factor = demandFactor(state.date);
   const matches = matchedVenues();
-  state.selected = new Set(matches.map((v) => v.id)); // all pre-selected
 
   $("browseCount").textContent =
-    `${matches.length} ${state.type === "buyout" ? "venue" : "venue"}${matches.length === 1 ? "" : "s"}` +
+    `${matches.length} venue${matches.length === 1 ? "" : "s"}` +
     (state.area === "all" ? " across Orlando" : ` in ${state.area}`);
 
   const grid = $("venueGrid");
   grid.innerHTML = "";
   matches.forEach((v, i) => {
-    const priceLabel = state.type === "buyout"
-      ? `from ${usd.format(v.buyout[0])}`
-      : `from ${usd.format(v.band[0])}`;
+    const fromBase = state.type === "buyout" ? v.buyout[0] : v.band[0];
+    const priceLabel = `from ${usd.format(roundTo(fromBase * factor, 25))}`;
     const priceSuffix = state.type === "buyout" ? "/ venue" : "/ table";
     const card = document.createElement("article");
-    card.className = "v-card selected";
+    card.className = "v-card";
     card.style.animationDelay = `${i * 45}ms`;
     card.dataset.id = v.id;
     card.innerHTML = `
       <div class="v-photo" style="background:linear-gradient(150deg,${v.g[0]},${v.g[1]})">
         ${v.glyph}
         ${v.fav ? `<span class="v-fav">Guest favorite</span>` : ""}
-        <button class="v-heart" type="button" aria-label="Add or remove ${v.name}">
+        <button class="v-heart${state.favorites.has(v.id) ? " favd" : ""}" type="button" aria-label="Save ${v.name}" aria-pressed="${state.favorites.has(v.id)}">
           <svg viewBox="0 0 32 32"><path d="M16 28C7.9 22.7 3 17.9 3 12.4 3 8.3 6.3 5 10.4 5c2.4 0 4.6 1.1 6 2.9C17.7 6.1 19.9 5 22.3 5 26.4 5 29 8.3 29 12.4c0 5.5-4.9 10.3-13 15.6z"/></svg>
         </button>
       </div>
@@ -175,28 +214,142 @@ function renderGrid() {
         <div class="v-tags">${v.tags}</div>
         <div class="v-price"><b>${priceLabel}</b> ${priceSuffix}</div>
       </div>`;
-    card.addEventListener("click", () => toggleVenue(v.id, card));
+    card.querySelector(".v-heart").addEventListener("click", (e) => {
+      e.stopPropagation();       // don't open the detail when saving
+      toggleFavorite(v.id, e.currentTarget);
+    });
+    card.addEventListener("click", () => openVenue(v.id));
     grid.appendChild(card);
   });
-
-  updateSendbar();
 }
 
-function toggleVenue(id, card) {
-  if (state.selected.has(id)) {
-    state.selected.delete(id);
-    card.classList.replace("selected", "unselected");
-  } else {
-    state.selected.add(id);
-    card.classList.replace("unselected", "selected");
+function toggleFavorite(id, btn) {
+  const on = !state.favorites.has(id);
+  if (on) state.favorites.add(id); else state.favorites.delete(id);
+  btn.classList.toggle("favd", on);
+  btn.setAttribute("aria-pressed", String(on));
+}
+
+/* ---------- venue detail ---------- */
+
+const GALLERY_SHOTS = ["Main room", "The bar", "DJ booth", "VIP tables", "Entrance"];
+
+// Abstract "photos": gradient tiles built from the venue's own two colors.
+function galleryTiles(v) {
+  const angles = [150, 30, 210, 90, 330];
+  return GALLERY_SHOTS.map((label, i) =>
+    `<figure class="vd-shot" style="background:linear-gradient(${angles[i]}deg,${v.g[i % 2]},${v.g[(i + 1) % 2]})">
+       <figcaption>${label}</figcaption>
+     </figure>`).join("");
+}
+
+function openVenue(id) {
+  const v = venueById(id);
+  const info = VENUE_INFO[id];
+  const band = state.type === "buyout" ? v.buyout : v.band;
+  const unit = state.type === "buyout" ? "venue" : "table";
+  const favd = state.favorites.has(id);
+
+  $("vdBody").innerHTML = `
+    <div class="vd-hero" style="background:linear-gradient(150deg,${v.g[0]},${v.g[1]})">
+      <span class="vd-glyph">${v.glyph}</span>
+      ${v.fav ? `<span class="v-fav">Guest favorite</span>` : ""}
+      <button class="v-heart vd-heart${favd ? " favd" : ""}" type="button" aria-label="Save ${v.name}" aria-pressed="${favd}">
+        <svg viewBox="0 0 32 32"><path d="M16 28C7.9 22.7 3 17.9 3 12.4 3 8.3 6.3 5 10.4 5c2.4 0 4.6 1.1 6 2.9C17.7 6.1 19.9 5 22.3 5 26.4 5 29 8.3 29 12.4c0 5.5-4.9 10.3-13 15.6z"/></svg>
+      </button>
+    </div>
+    <div class="vd-gallery">${galleryTiles(v)}</div>
+    <div class="vd-head">
+      <div>
+        <h2 class="vd-name">${v.name}</h2>
+        <p class="vd-sub">${v.area} · ${v.tags}</p>
+      </div>
+      <span class="v-rating vd-rating">${starSvg()} ${v.rating.toFixed(2)}</span>
+    </div>
+    <p class="vd-blurb">${info.blurb}</p>
+    <div class="vd-facts">
+      <div><small>Capacity</small><b>${info.capacity} guests</b></div>
+      <div><small>Hours</small><b>${info.hours}</b></div>
+      <div><small>Neighborhood</small><b>${v.area}</b></div>
+      <div><small>From</small><b>${usd.format(band[0])} / ${unit}</b></div>
+    </div>
+    <div class="vd-amen">
+      <h3>What's included</h3>
+      <ul class="vd-amen-list">${info.amenities.map((a) => `<li>${a}</li>`).join("")}</ul>
+    </div>
+    <div class="vd-deals">
+      <div class="vd-deals-head"><h3>Pick your night</h3><span id="vdDealsHint"></span></div>
+      <div class="vd-cal" id="vdCal"></div>
+    </div>
+    <div class="vd-cta">
+      <div class="vd-cta-info"><b id="vdCtaPrice"></b><span id="vdCtaNight"></span></div>
+      <button class="btn-primary" id="vdBook">Book this night</button>
+    </div>`;
+
+  $("vdBody").querySelector(".vd-heart").addEventListener("click", (e) =>
+    toggleFavorite(v.id, e.currentTarget)
+  );
+  $("vdBook").addEventListener("click", () => openInstantBook(v.id, state.date));
+
+  calVenue = v;
+  const [cy, cm] = state.date.split("-").map(Number);
+  calY = cy; calM = cm - 1;
+  renderVenueCalendar();
+  showScreen("venue");
+}
+
+let calVenue = null, calY, calM;
+
+// Month calendar for a venue's detail page: each future night priced, click to pick.
+function renderVenueCalendar() {
+  const v = calVenue;
+  const band = state.type === "buyout" ? v.buyout : v.band;
+  const todayIso = isoOf(new Date());
+  const { startWd, days } = monthMeta(calY, calM);
+
+  // cheapest factor among this month's selectable nights, for the "Deal" highlight
+  const selectable = [];
+  for (let d = 1; d <= days; d++) {
+    const iso = isoOf(new Date(calY, calM, d));
+    if (iso >= todayIso) selectable.push(iso);
   }
-  updateSendbar();
+  const minF = selectable.length ? Math.min(...selectable.map(demandFactor)) : 1;
+
+  let cells = "";
+  for (let i = 0; i < startWd; i++) cells += `<div class="cal-cell empty"></div>`;
+  for (let d = 1; d <= days; d++) {
+    const iso = isoOf(new Date(calY, calM, d));
+    if (iso < todayIso) { cells += `<div class="cal-cell past"><span class="cal-num">${d}</span></div>`; continue; }
+    const total = roundTo(band[0] * demandFactor(iso), 25);
+    const deal = demandFactor(iso) <= minF * 1.0001;
+    const eb = Math.round(earlyBirdDiscount(iso) * 100);
+    const picked = iso === state.date;
+    const tag = deal ? `<span class="cal-tag">Deal</span>`
+      : eb >= 5 ? `<span class="cal-tag early">-${eb}%</span>` : "";
+    cells += `<button type="button" class="cal-cell priced${picked ? " is-picked" : ""}${deal ? " is-deal" : ""}" data-iso="${iso}">
+      <span class="cal-dot lvl-${demandLabel(iso).toLowerCase()}"></span>
+      <span class="cal-num">${d}</span>
+      <span class="cal-price">${compactMoney(total)}</span>
+      ${tag}</button>`;
+  }
+
+  $("vdCal").innerHTML = calShell(calY, calM, cells);
+  $("vdCal").querySelector('[data-cal="prev"]').addEventListener("click", () => { calM--; if (calM < 0) { calM = 11; calY--; } renderVenueCalendar(); });
+  $("vdCal").querySelector('[data-cal="next"]').addEventListener("click", () => { calM++; if (calM > 11) { calM = 0; calY++; } renderVenueCalendar(); });
+  $("vdCal").querySelectorAll(".cal-cell[data-iso]").forEach((btn) =>
+    btn.addEventListener("click", () => { state.date = btn.dataset.iso; renderVenueCalendar(); })
+  );
+
+  $("vdDealsHint").textContent = "Highlighted nights are the cheapest. Midweek and booking early save the most.";
+  updateVenueCta(v);
 }
 
-function updateSendbar() {
-  const n = state.selected.size;
-  $("sendCount").textContent = n === 0 ? "No venues selected" : `Request quotes from ${n} venue${n > 1 ? "s" : ""}`;
-  $("btnSend").disabled = n === 0;
+function updateVenueCta(v) {
+  const band = state.type === "buyout" ? v.buyout : v.band;
+  const total = roundTo(band[0] * demandFactor(state.date), 25);
+  const deposit = roundTo(total * 0.2, 10);
+  $("vdCtaPrice").textContent = usd.format(total);
+  $("vdCtaNight").textContent = `${fmtDate(state.date)} · deposit ${usd.format(deposit)} due now`;
 }
 
 /* ---------- request + simulation engine ---------- */
@@ -258,6 +411,7 @@ function makeAutoQuote(venueId) {
   const band = state.type === "buyout" ? v.buyout : v.band;
   let total = rand(band[0], band[1]);
 
+  total *= demandFactor(state.date); // the chosen night's demand moves the price
   if (state.type === "table" && state.party > 6) total *= 1 + (state.party - 6) * 0.05;
   if (state.budget) {
     // promoters anchor to the stated total: most land near or just under budget
@@ -387,13 +541,64 @@ function renderQuotes() {
 /* ---------- booking ---------- */
 
 let bookingQuoteId = null;
+let instantBooking = null; // { venueId, iso, total, deposit } for the Airbnb-style instant book
 
 function bindBooking() {
-  $("bookClose").addEventListener("click", () => $("bookBackdrop").classList.add("hidden"));
+  $("bookClose").addEventListener("click", closeBooking);
   $("bookBackdrop").addEventListener("click", (e) => {
-    if (e.target === $("bookBackdrop")) $("bookBackdrop").classList.add("hidden");
+    if (e.target === $("bookBackdrop")) closeBooking();
   });
-  $("btnPay").addEventListener("click", confirmBooking);
+  $("btnPay").addEventListener("click", () => (instantBooking ? confirmInstant() : confirmBooking()));
+}
+
+function closeBooking() {
+  $("bookBackdrop").classList.add("hidden");
+  instantBooking = null;
+}
+
+// Instant book: price the chosen night for this venue and open the deposit modal.
+function openInstantBook(venueId, iso) {
+  const v = venueById(venueId);
+  const band = state.type === "buyout" ? v.buyout : v.band;
+  const f = demandFactor(iso);
+  const total = roundTo(band[0] * f, 25);
+  const deposit = roundTo(total * 0.2, 10);
+  instantBooking = { venueId, iso, total, deposit };
+  bookingQuoteId = null;
+
+  const eb = Math.round(earlyBirdDiscount(iso) * 100);
+  const ebLine = eb >= 5 ? `<div class="bline"><span>Early-bird discount</span><b>${eb}% off applied</b></div>` : "";
+  $("bookVenue").textContent = v.name;
+  $("bookLines").innerHTML = `
+    <div class="bline"><span>${state.type === "buyout" ? "Full venue" : "Table"} · ${state.party} people</span><b>${fmtDate(iso)} · ${state.time}</b></div>
+    <div class="bline"><span>${demandLabel(iso)} night rate</span><b>${usd.format(total)}</b></div>
+    ${ebLine}
+    <div class="bline total"><span>Deposit due now</span><b>${usd.format(deposit)}</b></div>`;
+  $("payAmount").textContent = usd.format(deposit);
+  $("btnPay").classList.remove("paying");
+  $("bookBackdrop").classList.remove("hidden");
+}
+
+function confirmInstant() {
+  const b = instantBooking;
+  if (!b) return;
+  $("btnPay").classList.add("paying");
+  $("btnPay").firstChild.textContent = "Processing… ";
+
+  setTimeout(() => {
+    const v = venueById(b.venueId);
+    const code = "BK-ORL-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+    $("confirmVenue").textContent = v.name;
+    $("confirmCode").innerHTML = `Confirmation <b>${code}</b>`;
+    $("confirmLines").innerHTML = `
+      <div class="bline"><span>${state.type === "buyout" ? "Full venue" : "Table"} · ${state.party} people · ${state.occasion}</span><b>${fmtDate(b.iso)} · ${state.time}</b></div>
+      <div class="bline"><span>Total</span><b>${usd.format(b.total)}</b></div>
+      <div class="bline total"><span>Deposit paid (credited to bill)</span><b>${usd.format(b.deposit)}</b></div>`;
+    $("bookBackdrop").classList.add("hidden");
+    $("btnPay").firstChild.textContent = "Pay deposit ";
+    instantBooking = null;
+    showScreen("confirm");
+  }, 900);
 }
 
 function openBooking(quoteId) {
@@ -624,6 +829,266 @@ function venueById(id) { return VENUES.find((v) => v.id === id); }
 
 function starSvg() {
   return `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1l2.2 4.5 4.8.7-3.5 3.4.8 4.9L8 12.7 3.7 14.5l.8-4.9L1 6.2l4.8-.7z"/></svg>`;
+}
+
+/* ---------- when / nightly deals ---------- */
+
+function isoOf(dt) {
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const d = String(dt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function isoAddDays(iso, n) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + n);
+  return isoOf(dt);
+}
+
+function nightsInRange(start, end, cap) {
+  if (!start || !end || end < start) return [];
+  const out = [];
+  let cur = start;
+  while (cur <= end && out.length < cap) {
+    out.push(cur);
+    cur = isoAddDays(cur, 1);
+  }
+  return out;
+}
+
+// Small deterministic wobble so different weeks in a long range price differently.
+function weekWobble(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const wk = Math.floor(Date.UTC(y, m - 1, d) / (7 * 864e5));
+  const s = Math.sin(wk * 12.9898) * 43758.5453;
+  return 0.94 + (s - Math.floor(s)) * 0.12; // 0.94 .. 1.06
+}
+
+// Whole days between today (local) and the given night. Negative if in the past.
+function daysOut(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const now = new Date();
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((Date.UTC(y, m - 1, d) - today) / 864e5);
+}
+
+// Early-bird: the further out the night, the bigger the discount, up to a floor.
+// 0.6% off per day out, capped at EARLY_BIRD_MAX (reached ~30 days ahead).
+function earlyBirdDiscount(iso) {
+  const out = daysOut(iso);
+  if (out <= 0) return 0;
+  return Math.min(EARLY_BIRD_MAX, out * 0.006);
+}
+function earlyBirdFactor(iso) {
+  return 1 - earlyBirdDiscount(iso);
+}
+
+// How busy a given night is (weekday demand + per-week wobble), before discounts.
+// Weekends run hot, midweek is where the deals are. Drives the Quiet/Busy/Peak label.
+function busyFactor(iso) {
+  if (!iso) return 1;
+  const [y, m, d] = iso.split("-").map(Number);
+  const wd = new Date(y, m - 1, d).getDay();
+  const base = (wd === 5 || wd === 6) ? 1.28  // Fri / Sat, peak
+    : wd === 4 ? 1.08                          // Thu warming up
+    : wd === 0 ? 1.00                          // Sun
+    : 0.82;                                    // Mon to Wed, quiet
+  return base * weekWobble(iso);
+}
+
+// Full price multiplier: how busy the night is, minus the early-bird discount.
+function demandFactor(iso) {
+  if (!iso) return 1;
+  return busyFactor(iso) * earlyBirdFactor(iso);
+}
+
+function demandLabel(iso) {
+  const f = busyFactor(iso);
+  return f >= 1.15 ? "Peak" : f >= 1.0 ? "Busy" : "Quiet";
+}
+
+function cheapestNight(start, end) {
+  const nights = nightsInRange(start, end, 60);
+  if (nights.length === 0) return start;
+  return nights.reduce((best, iso) => demandFactor(iso) < demandFactor(best) ? iso : best, nights[0]);
+}
+
+/* ---------- shared calendar (aesthetic, used by When + venue detail) ---------- */
+
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS_AHEAD = 6; // how far forward either calendar lets you navigate
+
+function compactMoney(n) {
+  return n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n}`;
+}
+function monthLabel(y, m) {
+  return new Date(y, m, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+function fmtShort(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+function monthMeta(y, m) {
+  return { startWd: new Date(y, m, 1).getDay(), days: new Date(y, m + 1, 0).getDate() };
+}
+// True if (y,m) is at/earlier than the current month (can't page back past today).
+function calAtMin(y, m) {
+  const now = new Date();
+  return y < now.getFullYear() || (y === now.getFullYear() && m <= now.getMonth());
+}
+function calAtMax(y, m) {
+  const now = new Date();
+  const cap = new Date(now.getFullYear(), now.getMonth() + MONTHS_AHEAD, 1);
+  return new Date(y, m, 1) >= cap;
+}
+// Shell markup: month nav + weekday header + a grid of pre-built cells.
+function calShell(y, m, cells) {
+  return `
+    <div class="cal-nav">
+      <button type="button" class="cal-arrow" data-cal="prev" ${calAtMin(y, m) ? "disabled" : ""} aria-label="Previous month">‹</button>
+      <b>${monthLabel(y, m)}</b>
+      <button type="button" class="cal-arrow" data-cal="next" ${calAtMax(y, m) ? "disabled" : ""} aria-label="Next month">›</button>
+    </div>
+    <div class="cal-grid cal-dow">${DOW.map((d) => `<span>${d}</span>`).join("")}</div>
+    <div class="cal-grid">${cells}</div>`;
+}
+
+/* ---------- front-page When range picker ---------- */
+
+let whenY, whenM, whenStart = null, whenEnd = null;
+
+function updateWhenLabel() {
+  $("whenLabel").textContent = `${fmtShort(state.dateStart)} to ${fmtShort(state.dateEnd)}`;
+}
+
+function toggleWhen() {
+  $("whenPop").classList.contains("hidden") ? openWhen() : closeWhen();
+}
+function openWhen() {
+  whenStart = state.dateStart;
+  whenEnd = state.dateEnd;
+  const [y, m] = state.dateStart.split("-").map(Number);
+  whenY = y; whenM = m - 1;
+  $("whenPill").setAttribute("aria-expanded", "true");
+  $("whenPop").classList.remove("hidden");
+  renderWhenCal();
+}
+function closeWhen() {
+  $("whenPop").classList.add("hidden");
+  $("whenPill").setAttribute("aria-expanded", "false");
+}
+
+function renderWhenCal() {
+  const todayIso = isoOf(new Date());
+  const { startWd, days } = monthMeta(whenY, whenM);
+  let cells = "";
+  for (let i = 0; i < startWd; i++) cells += `<div class="cal-cell empty"></div>`;
+  for (let d = 1; d <= days; d++) {
+    const iso = isoOf(new Date(whenY, whenM, d));
+    if (iso < todayIso) { cells += `<div class="cal-cell past"><span class="cal-num">${d}</span></div>`; continue; }
+    const hasRange = whenStart && whenEnd;
+    const inRange = hasRange && iso >= whenStart && iso <= whenEnd;
+    const isStart = iso === whenStart;
+    const isEnd = iso === whenEnd;
+    const cls = [
+      hasRange && isStart ? "range-start" : "",
+      hasRange && isEnd ? "range-end" : "",
+      inRange && !isStart && !isEnd ? "in-range" : "",
+      (isStart || isEnd) ? "is-picked" : "",
+    ].join(" ").trim();
+    cells += `<button type="button" class="cal-cell ${cls}" data-iso="${iso}">
+      <span class="cal-dot lvl-${demandLabel(iso).toLowerCase()}"></span>
+      <span class="cal-num">${d}</span></button>`;
+  }
+
+  const rangeText = whenEnd
+    ? `${fmtShort(whenStart)} to ${fmtShort(whenEnd)}`
+    : whenStart ? `${fmtShort(whenStart)} · pick an end night` : "Pick your first night";
+  $("whenPop").innerHTML = calShell(whenY, whenM, cells) +
+    `<div class="cal-foot"><span>${rangeText}</span></div>`;
+
+  $("whenPop").querySelector('[data-cal="prev"]').addEventListener("click", () => { whenM--; if (whenM < 0) { whenM = 11; whenY--; } renderWhenCal(); });
+  $("whenPop").querySelector('[data-cal="next"]').addEventListener("click", () => { whenM++; if (whenM > 11) { whenM = 0; whenY++; } renderWhenCal(); });
+  $("whenPop").querySelectorAll(".cal-cell[data-iso]").forEach((btn) =>
+    btn.addEventListener("click", () => whenPick(btn.dataset.iso))
+  );
+}
+
+function whenPick(iso) {
+  if (!whenStart || whenEnd) {        // start a fresh range
+    whenStart = iso; whenEnd = null;
+    renderWhenCal();
+  } else if (iso < whenStart) {        // clicked earlier: reset the start
+    whenStart = iso;
+    renderWhenCal();
+  } else {                             // second click: close the range and commit
+    whenEnd = iso;
+    commitWhen();
+  }
+}
+
+function commitWhen() {
+  state.dateStart = whenStart;
+  state.dateEnd = whenEnd;
+  if (state.date < whenStart || state.date > whenEnd) state.date = cheapestNight(whenStart, whenEnd);
+  updateWhenLabel();
+  closeWhen();
+  renderGrid();
+}
+
+function pickNight(iso) {
+  state.date = iso;
+  renderGrid();
+}
+
+// One night chip for a deal calendar. `minF` is the cheapest factor in the set
+// (for the relative delta) and `basis` is the dollar figure the price scales from.
+function dealDayChip(iso, minF, basis) {
+  const f = demandFactor(iso);
+  const up = Math.round((f / minF - 1) * 100);
+  const deal = up <= 0;
+  const delta = deal ? "Best deal" : `+${up}%`;
+  const price = usd.format(roundTo(basis * f, 25));
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const dow = dt.toLocaleDateString("en-US", { weekday: "short" });
+  const day = dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const lbl = demandLabel(iso);
+  const picked = iso === state.date;
+  const eb = Math.round(earlyBirdDiscount(iso) * 100);
+  const ebTag = eb >= 5 ? `<span class="dd-early">Early bird -${eb}%</span>` : "";
+  return `<button type="button" class="deal-day${deal ? " is-deal" : ""}${picked ? " is-picked" : ""}" data-iso="${iso}" aria-pressed="${picked}">
+      <span class="dd-dow">${dow}</span>
+      <span class="dd-date">${day}</span>
+      <span class="dd-demand lvl-${lbl.toLowerCase()}">${lbl}</span>
+      <span class="dd-price">~${price}</span>
+      <span class="dd-delta${deal ? " good" : ""}">${delta}</span>
+      ${ebTag}
+    </button>`;
+}
+
+function renderDealStrip() {
+  const strip = $("dealStrip");
+  const wrap = $("dealDays");
+  const nights = nightsInRange(state.dateStart, state.dateEnd, 42);
+  if (nights.length < 2) { strip.classList.add("hidden"); return; }
+  strip.classList.remove("hidden");
+
+  const minF = Math.min(...nights.map(demandFactor));
+  const ref = state.type === "buyout" ? 5000 : 700; // a representative "from" figure
+  wrap.innerHTML = nights.map((iso) => dealDayChip(iso, minF, ref)).join("");
+
+  wrap.querySelectorAll(".deal-day").forEach((btn) =>
+    btn.addEventListener("click", () => pickNight(btn.dataset.iso))
+  );
+
+  const best = cheapestNight(state.dateStart, state.dateEnd);
+  const save = Math.round((demandFactor(state.date) / demandFactor(best) - 1) * 100);
+  $("dealStripHint").textContent = state.date === best
+    ? `${fmtDate(best)} is the best deal in this range`
+    : `${fmtDate(state.date)} picked · ${fmtDate(best)} saves you about ${save}%`;
 }
 
 function fmtDate(iso) {

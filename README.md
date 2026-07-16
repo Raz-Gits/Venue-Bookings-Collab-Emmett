@@ -1,8 +1,10 @@
 # BOOKOUT◈ · Venue Bookings Collab (Raz × Emmett)
 
-**One request. Every venue answers.**
+**Book the night out. Every venue, one tap away.**
 
-A nightlife booking marketplace demo: customers browse Orlando venues, pick the ones they want, send one request, and every venue's promoter gets texted. Promoters reply with quotes inside a 1-hour window, and the customer compares quotes and books with a deposit.
+A nightlife booking marketplace demo: customers browse Orlando venues, open a venue for photos, details, and its open nights, then book a single night instantly with a deposit. Pricing shifts by night, so midweek is cheaper than weekends and booking early earns an early-bird discount.
+
+> **Note:** The customer flow recently moved from a multi-venue quote blast to this Airbnb-style **browse → venue page → instant book** model (proposed by Emmett, pending Raz review, see the callout in [PLAN.md](PLAN.md)). The live quote board and playable promoter view still exist in the code but are dormant, off the main path.
 
 **All decisions of record live in [PLAN.md](PLAN.md).** This repo currently holds the clickable demo where everything (venues, texts, quotes, payments) is simulated. Demo city: **Orlando, FL**.
 
@@ -32,9 +34,9 @@ Every push to `main` (i.e. every merged PR) auto-deploys after that.
 
 ## What the demo does
 
-- **Customer flow:** browse the venue grid (pre-selected, tap to add/remove), set your night (Venues or Tables, area, date, start, guests as a manual count, occasion, budget as a manual total) → one request texts every selected promoter → quotes stream in live under a 1-hour countdown → compare, book, pay a mock deposit → confirmation.
-- **Quote window:** the real product gives promoters 1 hour; the demo compresses it to **60 seconds (1 min = 1 hr)** so demos don't drag.
-- **Promoter view** (button in the header): a simulated phone showing the venue's BookOut app. The promoter gets the request as a **text notification** and sees it laid out in-app: an organized request card (date, time, party, occasion, area, budget) plus an inline quote form. Submit a quote and watch it appear live on the customer's board. One selected venue is always reserved for you to play and never auto-quotes.
+- **Customer flow:** browse the venue grid, set your date range and party (Venues or Tables, area, guests, start, occasion) → the deal strip surfaces the cheapest nights across Orlando → open a venue for photos, blurb, capacity/hours, amenities, and a per-night deal calendar → pick a night and **book instantly**, pay a mock deposit → confirmation.
+- **Dynamic pricing:** each night is priced by demand (weekends peak, midweek quiet) plus an **early-bird discount** that grows the further out you book (up to 18%). The deal calendar tags nights Quiet · Busy · Peak with a relative price delta and an "Early bird" marker.
+- **Dormant (legacy) pieces:** the live quote board and the playable **Promoter view** (header button) remain in the code from the previous quote-blast model, pending Raz's review of the model change. They are not on the current booking path.
 
 ## Files
 
