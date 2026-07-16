@@ -44,8 +44,8 @@ const NOTES_POOL = [
 /* ---------- state ---------- */
 
 const state = {
+  city: "Orlando",        // chosen on the entry screen
   type: "buyout",         // default tab: Venues (whole-venue buyout)
-  area: "all",
   date: "",
   time: "10:00 PM",
   party: 8,
@@ -79,10 +79,19 @@ const roundTo = (n, step) => Math.round(n / step) * step;
   d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7)); // next Friday
   $("fDate").value = d.toISOString().slice(0, 10);
 
+  // spotlight glow: share pointer position with the cards via CSS vars on :root
+  document.addEventListener("pointermove", (e) => {
+    const r = document.documentElement.style;
+    r.setProperty("--x", e.clientX.toFixed(1));
+    r.setProperty("--y", e.clientY.toFixed(1));
+  }, { passive: true });
+
+  bindCity();
   bindBrowse();
   bindBoard();
   bindPromoter();
   bindBooking();
+  bindChat();
 
   $("logoHome").addEventListener("click", resetAll);
   $("btnNewSearch").addEventListener("click", resetAll);
@@ -108,7 +117,6 @@ function bindBrowse() {
     })
   );
 
-  $("fArea").addEventListener("change", (e) => { state.area = e.target.value; renderGrid(); });
   $("fDate").addEventListener("change", (e) => { state.date = e.target.value; });
   $("fTime").addEventListener("change", (e) => { state.time = e.target.value; });
   $("fOccasion").addEventListener("change", (e) => { state.occasion = e.target.value; });
@@ -131,7 +139,7 @@ function bindBrowse() {
 }
 
 function matchedVenues() {
-  return VENUES.filter((v) => state.area === "all" || v.area === state.area);
+  return VENUES; // single city in the demo; all venues belong to the chosen city
 }
 
 function renderGrid() {
@@ -143,9 +151,7 @@ function renderGrid() {
   const matches = matchedVenues();
   state.selected = new Set(matches.map((v) => v.id)); // all pre-selected
 
-  $("browseCount").textContent =
-    `${matches.length} ${state.type === "buyout" ? "venue" : "venue"}${matches.length === 1 ? "" : "s"}` +
-    (state.area === "all" ? " across Orlando" : ` in ${state.area}`);
+  $("browseCount").textContent = `${matches.length} venue${matches.length === 1 ? "" : "s"} in ${state.city}`;
 
   const grid = $("venueGrid");
   grid.innerHTML = "";
@@ -156,7 +162,9 @@ function renderGrid() {
     const priceSuffix = state.type === "buyout" ? "/ venue" : "/ table";
     const card = document.createElement("article");
     card.className = "v-card selected";
-    card.style.animationDelay = `${i * 45}ms`;
+    const delay = `${i * 55}ms`;
+    card.style.animationDelay = delay;
+    card.style.setProperty("--hue", (i * 40) % 360); // carnival: each card a different hue
     card.dataset.id = v.id;
     card.innerHTML = `
       <div class="v-photo" style="background:linear-gradient(150deg,${v.g[0]},${v.g[1]})">
@@ -174,8 +182,14 @@ function renderGrid() {
         <div class="v-area">${v.area}</div>
         <div class="v-tags">${v.tags}</div>
         <div class="v-price"><b>${priceLabel}</b> ${priceSuffix}</div>
+        <button class="v-book" type="button">Book this ${state.type === "buyout" ? "venue" : "table"}</button>
       </div>`;
+    card.querySelector(".v-photo").style.animationDelay = delay; // sync the flash to the pop
     card.addEventListener("click", () => toggleVenue(v.id, card));
+    card.querySelector(".v-book").addEventListener("click", (e) => {
+      e.stopPropagation();
+      bookSpecificVenue(v.id);
+    });
     grid.appendChild(card);
   });
 
@@ -246,6 +260,45 @@ function startRequest() {
   renderPhone();
   showScreen("board");
   toast(`Request texted to ${ids.length} promoters`);
+}
+
+// direct path: request just one venue for people who already know where they want to go
+function bookSpecificVenue(id) {
+  const pn = parseInt($("fPartyNum").value, 10);
+  if (Number.isFinite(pn)) state.party = Math.min(2000, Math.max(1, pn));
+  state.date = $("fDate").value;
+  state.time = $("fTime").value;
+  state.occasion = $("fOccasion").value;
+
+  stopClock();
+  state.quotes = [];
+  state.booked = null;
+  state.humanQuoted = false;
+  state.humanVenueId = null; // no promoter roleplay in the direct path; the venue auto-quotes
+  state.requestOpen = true;
+  state.windowEndsAt = Date.now() + WINDOW_MS;
+  state.selected = new Set([id]);
+
+  $("promoterDot").classList.remove("live");
+  $("promoterVenueName").textContent = "…";
+  state.timers.push(setTimeout(() => addQuote(makeAutoQuote(id)), 1600)); // fast single quote
+
+  const v = venueById(id);
+  $("textedCount").textContent = 1;
+  $("boardSummary").textContent = summaryText();
+  $("boardTitle").textContent = `Getting ${v.name}'s quote`;
+  $("repliedCount").textContent = "0 replied";
+  $("quotesEmpty").innerHTML = WAITING_HTML;
+  $("quotesEmpty").classList.remove("hidden");
+  $("ring").classList.remove("closed", "urgent");
+  $("ringLabel").textContent = "left to quote";
+
+  state.tick = setInterval(tickWindow, 250);
+  tickWindow();
+  renderQuotes();
+  renderPhone();
+  showScreen("board");
+  toast(`Requesting a quote from ${v.name}`);
 }
 
 function summaryText() {
@@ -475,7 +528,7 @@ function renderPhone() {
 
   const requestCard = `
     <div class="pa-alert">
-      <div class="pa-alert-ic">📩</div>
+      <div class="pa-alert-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></div>
       <div>
         <b>New request texted to you</b>
         <span>+1 (407) 555-0199 · also in your app below</span>
@@ -521,7 +574,7 @@ function quoteStatusCard() {
   if (state.booked) {
     const bq = state.quotes.find((q) => q.id === state.booked);
     status = bq && bq.source === "human"
-      ? `<div class="pa-status won">🎉 You won the booking. Deposit ${usd.format(bq.deposit)} received.</div>`
+      ? `<div class="pa-status won">You won the booking. Deposit ${usd.format(bq.deposit)} received.</div>`
       : `<div class="pa-status lost">Booked with another venue this time. Better luck tonight.</div>`;
   }
   return `
@@ -584,6 +637,295 @@ function wireQuoteForm(v) {
     renderPhone();
   });
 }
+
+/* ---------- city picker (entry step) ---------- */
+
+const CITIES = [
+  { name: "Orlando, FL", live: true },
+  { name: "Miami, FL" },
+  { name: "Tampa, FL" },
+  { name: "Atlanta, GA" },
+  { name: "Nashville, TN" },
+  { name: "New York, NY" },
+  { name: "Los Angeles, CA" },
+  { name: "Austin, TX" },
+];
+
+function bindCity() {
+  const input = $("cityInput");
+  input.addEventListener("input", () => renderCitySuggest(input.value));
+  input.addEventListener("focus", () => renderCitySuggest(input.value));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const first = CITIES.filter((c) => matchCity(c, input.value))[0];
+      if (first && first.live) chooseCity(first);
+      else if (first) toast(`BookOut is live in Orlando first. ${first.name.split(",")[0]} is coming soon.`);
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".city-field")) $("citySuggest").classList.add("hidden");
+  });
+  $("cityChip").addEventListener("click", () => showScreen("city"));
+}
+
+function matchCity(c, q) {
+  return c.name.toLowerCase().includes((q || "").trim().toLowerCase());
+}
+
+function renderCitySuggest(q) {
+  const box = $("citySuggest");
+  const list = CITIES.filter((c) => matchCity(c, q));
+  if (!list.length) {
+    box.innerHTML = `<div class="city-empty">No cities match. Try Orlando.</div>`;
+    box.classList.remove("hidden");
+    return;
+  }
+  box.innerHTML = list.map((c) => `
+    <button type="button" class="city-opt ${c.live ? "live" : ""}" data-city="${c.name}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6-7-11a7 7 0 0114 0c0 5-7 11-7 11z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+      <span class="city-name">${c.name}</span>
+      ${c.live ? "" : `<span class="city-soon">Coming soon</span>`}
+    </button>`).join("");
+  box.classList.remove("hidden");
+  box.querySelectorAll(".city-opt").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const c = CITIES.find((x) => x.name === btn.dataset.city);
+      if (c.live) chooseCity(c);
+      else { toast(`BookOut is live in Orlando first. ${c.name.split(",")[0]} is coming soon.`); }
+    });
+  });
+}
+
+function chooseCity(c) {
+  state.city = c.name.split(",")[0];
+  $("citySuggest").classList.add("hidden");
+  $("cityInput").value = c.name;
+  $("cityChip").textContent = `${state.city} · change city`;
+  renderGrid();
+  showScreen("browse");
+}
+
+/* ---------- Ask AI chat ---------- */
+
+const chat = { collected: {}, launched: false, busy: false };
+
+function bindChat() {
+  $("btnAskAI").addEventListener("click", openChat);
+  $("chatClose").addEventListener("click", closeChat);
+  $("chatBackdrop").addEventListener("click", (e) => { if (e.target === $("chatBackdrop")) closeChat(); });
+  $("chatForm").addEventListener("submit", (e) => { e.preventDefault(); chatUserSubmit($("chatText").value); });
+}
+
+function openChat() {
+  chat.collected = {};
+  chat.launched = false;
+  chat.busy = false;
+  $("chatLog").innerHTML = "";
+  $("chatBackdrop").classList.remove("hidden");
+  botSay("Hey. I can set this up for you. Tell me the basics: what's the occasion, how many people, and what night? You can add a start time and a budget too.");
+  setTimeout(() => $("chatText").focus(), 120);
+}
+
+function closeChat() { $("chatBackdrop").classList.add("hidden"); }
+
+function chatUserSubmit(text) {
+  text = (text || "").trim();
+  if (!text || chat.busy) return;
+  addMsg("user", text);
+  $("chatText").value = "";
+  const launchCmd = /^(go|get quotes?|yes|yep|yeah|do it|send it|launch|ok|okay|sure)\b/.test(text.toLowerCase());
+  parseInput(text);
+  botTurn(launchCmd);
+}
+
+function botTurn(launchCmd) {
+  const c = chat.collected;
+  if (!c.date) { botSay("What night are you thinking? You can say a day like Friday, or 'this weekend', 'tomorrow', or a date."); return; }
+  if (!c.party) { botSay("Got it. Roughly how many people?"); return; }
+  const n = matchedVenues().length;
+  if (launchCmd) { launchFromChat(); return; }
+  botSay(summarize(n), () => addAction(`Get quotes from ${n} ${n === 1 ? "venue" : "venues"}`, launchFromChat));
+}
+
+function summarize(n) {
+  const c = chat.collected;
+  const bits = [
+    c.type === "table" ? "Tables" : "Venues",
+    fmtDate(c.date),
+    c.time || "10:00 PM",
+    `${c.party} people`,
+    c.occasion || "Night out",
+    c.budget ? `budget ${budgetLabel(c.budget)}` : "no set budget",
+  ];
+  return `Here's what I've got: ${bits.join(" · ")}. I'll text ${n} ${n === 1 ? "venue" : "venues"} in ${state.city} to quote you.`;
+}
+
+function launchFromChat() {
+  if (chat.launched) return;
+  chat.launched = true;
+  const c = chat.collected;
+  if (c.type) {
+    state.type = c.type;
+    document.querySelectorAll(".prod-tab").forEach((x) => x.classList.toggle("active", x.dataset.type === state.type));
+  }
+  if (c.date) $("fDate").value = c.date;
+  if (c.time) $("fTime").value = c.time;
+  if (c.party) $("fPartyNum").value = c.party;
+  if (c.occasion) $("fOccasion").value = c.occasion;
+  $("fBudget").value = c.budget || "";
+  state.budget = c.budget || null;
+  renderGrid();     // selects all venues, syncs date/time/occasion from inputs
+  closeChat();
+  startRequest();   // fire the request and go to the board
+}
+
+/* ---- chat parsing ---- */
+
+function parseInput(text) {
+  const c = chat.collected;
+  const low = text.toLowerCase();
+  let rest = " " + low.replace(/,/g, "") + " ";
+
+  const b = extractBudget(rest);
+  if (b.value != null) { c.budget = b.value; rest = rest.replace(b.raw, " "); }
+
+  rest = rest.replace(/\b\d{1,2}(:\d{2})?\s?(am|pm)\b/g, " "); // drop time tokens before guest parse
+
+  const g = extractGuests(rest);
+  if (g != null) c.party = g;
+
+  if (/\btables?\b|bottle service|\bsection\b/.test(rest)) c.type = "table";
+  else if (/buyout|full venue|whole (venue|place|club)|entire|book out|private (the )?venue/.test(rest)) c.type = "buyout";
+
+  const occ = extractOccasion(rest); if (occ) c.occasion = occ;
+  const tm = extractTime(low); if (tm) c.time = tm;
+  const dt = extractDate(low); if (dt) c.date = dt;
+}
+
+function extractBudget(s) {
+  let m = s.match(/\$\s?(\d+(?:\.\d+)?)\s?(k)?/);
+  if (m) return { value: Math.round(parseFloat(m[1]) * (m[2] ? 1000 : 1)), raw: m[0] };
+  m = s.match(/budget[^\d]{0,10}(\d+(?:\.\d+)?)\s?(k)?/);
+  if (m) return { value: Math.round(parseFloat(m[1]) * (m[2] ? 1000 : 1)), raw: m[0] };
+  m = s.match(/\b(\d+(?:\.\d+)?)\s?k\b/);
+  if (m) return { value: Math.round(parseFloat(m[1]) * 1000), raw: m[0] };
+  return { value: null, raw: null };
+}
+
+function extractGuests(s) {
+  let m = s.match(/(\d{1,4})\s*(?:people|ppl|guests?|pax|heads|persons?)\b/);
+  if (m) return clampParty(m[1]);
+  m = s.match(/(?:for|party of|group of|table for|of)\s+(\d{1,4})\b/);
+  if (m) return clampParty(m[1]);
+  const nums = s.match(/\b\d{1,4}\b/g);
+  if (nums) {
+    for (const n of nums) {
+      const v = parseInt(n, 10);
+      if (v >= 1 && v <= 2000 && !(v >= 1900 && v <= 2100)) return v;
+    }
+  }
+  return null;
+}
+
+function clampParty(x) { return Math.min(2000, Math.max(1, parseInt(x, 10))); }
+
+function extractOccasion(s) {
+  if (/bachelorette|bachelor/.test(s)) return "Bachelor / bachelorette";
+  if (/b-?day|birthday/.test(s)) return "Birthday";
+  if (/corporate|company|work event|team/.test(s)) return "Corporate";
+  if (/celebrat|anniversar|graduation|promotion/.test(s)) return "Celebration";
+  if (/night out|going out|casual/.test(s)) return "Night out";
+  return null;
+}
+
+function extractTime(s) {
+  const m = s.match(/\b(\d{1,2})(?::(\d{2}))?\s?(am|pm)\b/);
+  if (!m) return null;
+  const h = parseInt(m[1], 10);
+  const ap = m[3];
+  if (ap === "pm" && h >= 9 && h <= 11) return `${h}:00 PM`;
+  if ((ap === "am" && (h === 12 || h <= 2)) || (ap === "pm" && h === 12)) return "12:00 AM";
+  return "10:00 PM";
+}
+
+function extractDate(s) {
+  const today = new Date();
+  const isoOf = (d) => d.toISOString().slice(0, 10);
+  const plus = (n) => { const x = new Date(today); x.setDate(today.getDate() + n); return isoOf(x); };
+  const nextDow = (target) => { const diff = (target - today.getDay() + 7) % 7; return plus(diff); };
+
+  if (/\btonight\b|\btoday\b/.test(s)) return isoOf(today);
+  if (/\btomorrow\b/.test(s)) return plus(1);
+  if (/this weekend|\bweekend\b/.test(s)) return nextDow(6);
+
+  const days = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+    sun: 0, mon: 1, tue: 2, tues: 2, wed: 3, thu: 4, thur: 4, thurs: 4, fri: 5, sat: 6 };
+  for (const k in days) { if (new RegExp("\\b" + k + "\\b").test(s)) return nextDow(days[k]); }
+
+  let m = s.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/);
+  if (m) {
+    const y = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : today.getFullYear();
+    const d = new Date(y, +m[1] - 1, +m[2]);
+    if (!isNaN(d.getTime())) return isoOf(d);
+  }
+  const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  m = s.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})\b/);
+  if (m) {
+    const mi = months.indexOf(m[1]);
+    let d = new Date(today.getFullYear(), mi, +m[2]);
+    if (d.getTime() < today.getTime() - 86400000) d = new Date(today.getFullYear() + 1, mi, +m[2]);
+    return isoOf(d);
+  }
+  return null;
+}
+
+/* ---- chat UI helpers ---- */
+
+function addMsg(role, text) {
+  const el = document.createElement("div");
+  el.className = "msg " + role;
+  el.textContent = text;
+  $("chatLog").appendChild(el);
+  scrollChat();
+}
+
+function addAction(label, onClick) {
+  const wrap = document.createElement("div");
+  wrap.className = "msg-action";
+  const btn = document.createElement("button");
+  btn.className = "btn-primary";
+  btn.type = "button";
+  btn.textContent = label;
+  btn.addEventListener("click", onClick);
+  wrap.appendChild(btn);
+  $("chatLog").appendChild(wrap);
+  scrollChat();
+}
+
+function botSay(text, cb) {
+  chat.busy = true;
+  showTyping();
+  setTimeout(() => {
+    hideTyping();
+    addMsg("bot", text);
+    chat.busy = false;
+    if (cb) cb();
+  }, 620);
+}
+
+function showTyping() {
+  hideTyping();
+  const el = document.createElement("div");
+  el.className = "chat-typing";
+  el.id = "chatTyping";
+  el.innerHTML = "<i></i><i></i><i></i>";
+  $("chatLog").appendChild(el);
+  scrollChat();
+}
+
+function hideTyping() { const t = $("chatTyping"); if (t) t.remove(); }
+function scrollChat() { const l = $("chatLog"); l.scrollTop = l.scrollHeight; }
 
 /* ---------- shared helpers ---------- */
 

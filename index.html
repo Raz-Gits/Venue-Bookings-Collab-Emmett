@@ -27,12 +27,34 @@
 
 <main id="app">
 
+  <!-- ============ CITY PICKER (entry step) ============ -->
+  <section class="screen" id="screen-city">
+    <div class="city-screen">
+      <p class="hero-kicker">BookOut</p>
+      <h1 class="hero-title">Where are you<br /><em>going out?</em></h1>
+      <p class="hero-sub">Pick your city and we'll show you every venue, then get them all to quote your night.</p>
+      <div class="city-field">
+        <svg class="city-pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6-7-11a7 7 0 0114 0c0 5-7 11-7 11z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        <input type="text" id="cityInput" placeholder="Search a city" autocomplete="off" aria-label="City" />
+        <div class="city-suggest hidden" id="citySuggest" role="listbox"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ BROWSE + BUILD REQUEST ============ -->
-  <section class="screen" id="screen-browse">
+  <section class="screen hidden" id="screen-browse">
     <div class="hero">
-      <p class="hero-kicker">Orlando nightlife</p>
+      <button type="button" class="hero-kicker city-chip" id="cityChip">Orlando · change city</button>
       <h1 class="hero-title">Pick your venues.<br /><em>Every promoter</em> quotes you.</h1>
-      <p class="hero-sub">Choose the spots you like, tell them your night, and send one request. Quotes land on a one-hour countdown, and you compare and book with a deposit. Free for you, always.</p>
+      <p class="hero-sub">Choose the spots you like, tell them your night, and send one request. Quotes land on a one-hour countdown, and you compare and book with a deposit. Free for you, always. Or open a venue to book it on its own.</p>
+    </div>
+
+    <div class="ai-cta">
+      <span>Don't feel like filling this out?</span>
+      <button type="button" class="btn-ai" id="btnAskAI">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.9L19 9.8l-4.1 2.6L16 18l-4-3-4 3 1.1-5.6L5 9.8l5.1-1.9z" fill="currentColor"/></svg>
+        Ask AI to plan it
+      </button>
     </div>
 
     <div class="prod-tabs" role="tablist" aria-label="Booking type">
@@ -47,16 +69,6 @@
     </div>
 
     <div class="filters" id="filters">
-      <label class="refine-pill">
-        <span>Where</span>
-        <select id="fArea">
-          <option value="all">All Orlando</option>
-          <option value="Downtown">Downtown</option>
-          <option value="I-Drive">I-Drive</option>
-          <option value="Thornton Park">Thornton Park</option>
-          <option value="Mills 50">Mills 50</option>
-        </select>
-      </label>
       <label class="refine-pill">
         <span>When</span>
         <input type="date" id="fDate" required />
@@ -140,7 +152,7 @@
   <!-- ============ CONFIRMATION ============ -->
   <section class="screen hidden" id="screen-confirm">
     <div class="confirm card">
-      <div class="confirm-burst">✓</div>
+      <div class="confirm-burst"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <p class="confirm-kicker">Booked</p>
       <h2 id="confirmVenue"></h2>
       <p class="confirm-code">Confirmation <b id="confirmCode"></b></p>
@@ -155,7 +167,7 @@
 <!-- ============ BOOKING MODAL ============ -->
 <div class="modal-backdrop hidden" id="bookBackdrop">
   <div class="modal card" role="dialog" aria-modal="true">
-    <button class="modal-x" id="bookClose">✕</button>
+    <button class="modal-x" id="bookClose">×</button>
     <p class="modal-kicker">Confirm and pay</p>
     <h3 id="bookVenue"></h3>
     <div class="book-lines" id="bookLines"></div>
@@ -168,13 +180,34 @@
   </div>
 </div>
 
+<!-- ============ ASK AI CHAT ============ -->
+<div class="chat-backdrop hidden" id="chatBackdrop">
+  <div class="chat card" role="dialog" aria-modal="true" aria-label="BookOut assistant">
+    <div class="chat-head">
+      <div class="chat-title">
+        <span class="chat-avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.9L19 9.8l-4.1 2.6L16 18l-4-3-4 3 1.1-5.6L5 9.8l5.1-1.9z" fill="currentColor"/></svg></span>
+        <div>
+          <b>BookOut Assistant</b>
+          <span>Tell me your night, I'll get the quotes</span>
+        </div>
+      </div>
+      <button class="chat-x" id="chatClose" aria-label="Close">×</button>
+    </div>
+    <div class="chat-log" id="chatLog"></div>
+    <form class="chat-input" id="chatForm" autocomplete="off">
+      <input type="text" id="chatText" placeholder="e.g. Saturday, 40 people, birthday, downtown, $5k" />
+      <button type="submit" class="chat-send" id="chatSend" aria-label="Send">→</button>
+    </form>
+  </div>
+</div>
+
 <!-- ============ PROMOTER PHONE PANEL ============ -->
 <div class="panel-backdrop hidden" id="panelBackdrop"></div>
 <aside class="promoter-panel hidden" id="promoterPanel" aria-label="Promoter demo phone">
   <div class="panel-head">
     <b>Promoter demo</b>
     <span>You're the promoter for <b id="promoterVenueName">…</b></span>
-    <button class="panel-x" id="panelClose">✕</button>
+    <button class="panel-x" id="panelClose">×</button>
   </div>
   <div class="phone">
     <div class="phone-notch"></div>
