@@ -61,6 +61,11 @@
       </button>
     </div>
 
+    <div class="mode-toggle" id="modeToggle" role="tablist" aria-label="How to book">
+      <button type="button" class="mode-opt active" data-mode="book" role="tab">Book a venue</button>
+      <button type="button" class="mode-opt" data-mode="compare" role="tab">Compare quotes</button>
+    </div>
+
     <div class="prod-tabs" role="tablist" aria-label="Booking type">
       <button type="button" class="prod-tab active" data-type="buyout" role="tab">
         <svg viewBox="0 0 24 24"><path d="M4 21V6l8-3 8 3v15M4 21h16M9 21v-5h6v5M8 9h.01M12 9h.01M16 9h.01M8 13h.01M16 13h.01"/></svg>
@@ -110,18 +115,36 @@
 
     <div class="browse-head">
       <h2 class="browse-count" id="browseCount"></h2>
-      <p class="browse-hint">Tap a venue to add or remove it from your request.</p>
+      <p class="browse-hint" id="browseHint">Tap a venue to see prices and book.</p>
     </div>
 
     <div class="venue-grid" id="venueGrid"></div>
 
-    <div class="sendbar" id="sendbar">
+    <div class="sendbar hidden" id="sendbar">
       <div class="sendbar-info">
         <b id="sendCount"></b>
-        <span>Each promoter gets a text and has 1 hour to quote</span>
+        <span>Every selected venue gets your request to quote</span>
       </div>
       <button class="btn-primary" id="btnSend">Request quotes</button>
     </div>
+  </section>
+
+  <!-- ============ VENUE DETAIL (book + approve) ============ -->
+  <section class="screen hidden" id="screen-venue">
+    <button class="btn-back" id="venueBack">← All venues</button>
+    <div id="venueDetail"></div>
+    <div class="book-footer hidden" id="venueFooter">
+      <div class="bf-info">
+        <b id="bfPrice">Select an option</b>
+        <span id="bfDeposit"></span>
+      </div>
+      <button class="btn-primary" id="bfRequest" disabled>Request to book</button>
+    </div>
+  </section>
+
+  <!-- ============ PENDING APPROVAL ============ -->
+  <section class="screen hidden" id="screen-pending">
+    <div class="pending" id="pendingCard"></div>
   </section>
 
   <!-- ============ LIVE QUOTE BOARD ============ -->
@@ -209,7 +232,23 @@
 
 </main>
 
-<!-- ============ BOOKING MODAL ============ -->
+<!-- ============ REQUEST TO BOOK MODAL (book + approve) ============ -->
+<div class="modal-backdrop hidden" id="reqBackdrop">
+  <div class="modal card" role="dialog" aria-modal="true">
+    <button class="modal-x" id="reqClose">×</button>
+    <p class="modal-kicker">Request to book</p>
+    <h3 id="reqVenue"></h3>
+    <div class="book-lines" id="reqSummary"></div>
+    <label class="field">
+      <span>Card <em>(demo, not charged)</em></span>
+      <input type="text" id="reqCard" value="4242 4242 4242 4242" readonly />
+    </label>
+    <button class="btn-primary btn-big" id="reqSubmit">Send booking request <b id="reqDep"></b></button>
+    <p class="modal-fine">Your deposit is only held now and charged if the venue approves. Nothing is charged if they decline. Free cancellation window &amp; no-show policy: TBD in PLAN.md.</p>
+  </div>
+</div>
+
+<!-- ============ BOOKING MODAL (compare-quotes flow) ============ -->
 <div class="modal-backdrop hidden" id="bookBackdrop">
   <div class="modal card" role="dialog" aria-modal="true">
     <button class="modal-x" id="bookClose">×</button>

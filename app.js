@@ -45,12 +45,16 @@ const NOTES_POOL = [
 
 const state = {
   city: "Orlando",        // chosen on the entry screen
+  mode: "book",           // "book" (request + venue approves) or "compare" (quote auction)
   type: "buyout",         // default tab: Venues (whole-venue buyout)
   date: "",
   time: "10:00 PM",
   party: 8,
   occasion: "Night out",
   budget: null,           // null = no budget; otherwise a total-dollar number
+  currentVenueId: null,   // venue open in the detail page
+  selectedPkgId: null,    // package chosen in the detail page
+  booking: null,          // the live request-to-book: {venueId, pkg, ..., status}
   selected: new Set(),
   requestOpen: false,
   windowEndsAt: 0,
@@ -66,6 +70,25 @@ const state = {
 const WAITING_HTML =
   `<div class="pulse-dot"></div>` +
   `<p>Waiting for the first quote…<br><small>Promoters are typing. Try the <b>Promoter view</b> ↗ to send one yourself.</small></p>`;
+
+// set prices/packages each venue lists upfront (book-and-approve model)
+function venuePackages(v) {
+  const t = v.band, b = v.buyout;
+  return [
+    { id: v.id + "-t1", type: "table", name: "Standard table", price: roundTo(t[0], 25), depPct: 20, cap: "up to 6 guests",
+      includes: ["Reserved table with bottle minimum", "Skip-the-line entry for your group"] },
+    { id: v.id + "-t2", type: "table", name: "Dancefloor table", price: roundTo((t[0] + t[1]) / 2, 25), depPct: 20, cap: "up to 10 guests",
+      includes: ["Prime table by the floor", "2 bottles and mixers included", "Skip-the-line entry"] },
+    { id: v.id + "-t3", type: "table", name: "VIP booth", price: roundTo(t[1], 25), depPct: 25, cap: "up to 15 guests",
+      includes: ["Best booth in the house", "Dedicated server all night", "Champagne on arrival"] },
+    { id: v.id + "-b1", type: "buyout", name: "Full venue buyout", price: roundTo(b[0], 100), depPct: 20, cap: "whole venue",
+      includes: ["The entire venue for the night", "Your own guest list", "Dedicated event manager"] },
+    { id: v.id + "-b2", type: "buyout", name: "Premium buyout", price: roundTo(b[1], 100), depPct: 25, cap: "whole venue and extras",
+      includes: ["Entire venue and rooftop", "Custom production and staffing", "Security and coat check"] },
+  ].map((p) => ({ ...p, deposit: roundTo((p.price * p.depPct) / 100, 10) }));
+}
+
+function packageById(v, id) { return venuePackages(v).find((p) => p.id === id); }
 
 const $ = (id) => document.getElementById(id);
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -88,6 +111,8 @@ const roundTo = (n, step) => Math.round(n / step) * step;
 
   bindCity();
   bindBrowse();
+  bindVenue();
+  bindReqModal();
   bindBoard();
   bindPromoter();
   bindPromoterApp();
@@ -103,12 +128,23 @@ const roundTo = (n, step) => Math.round(n / step) * step;
     })
   );
 
+  applyModeUI();
   renderGrid();
 })();
 
 /* ---------- browse screen ---------- */
 
 function bindBrowse() {
+  document.querySelectorAll("#modeToggle .mode-opt").forEach((b) =>
+    b.addEventListener("click", () => {
+      document.querySelectorAll("#modeToggle .mode-opt").forEach((x) => x.classList.remove("active"));
+      b.classList.add("active");
+      state.mode = b.dataset.mode;
+      applyModeUI();
+      renderGrid();
+    })
+  );
+
   document.querySelectorAll(".prod-tab").forEach((b) =>
     b.addEventListener("click", () => {
       document.querySelectorAll(".prod-tab").forEach((x) => x.classList.remove("active"));
@@ -143,14 +179,25 @@ function matchedVenues() {
   return VENUES; // single city in the demo; all venues belong to the chosen city
 }
 
+// swap the browse chrome (hint, sendbar, promoter-roleplay button) to match the current mode
+function applyModeUI() {
+  const compare = state.mode === "compare";
+  $("browseHint").textContent = compare
+    ? "Tap venues to pick who quotes you, then compare their offers."
+    : "Tap a venue to see prices and book.";
+  $("sendbar").classList.toggle("hidden", !compare);
+  $("btnPromoter").style.display = compare ? "" : "none"; // roleplay phone is a compare-mode tool
+}
+
 function renderGrid() {
   // sync current filter values into state
   state.date = $("fDate").value;
   state.time = $("fTime").value;
   state.occasion = $("fOccasion").value;
 
+  const compare = state.mode === "compare";
   const matches = matchedVenues();
-  state.selected = new Set(matches.map((v) => v.id)); // all pre-selected
+  if (compare) state.selected = new Set(matches.map((v) => v.id)); // all pre-selected for the quote blast
 
   $("browseCount").textContent = `${matches.length} venue${matches.length === 1 ? "" : "s"} in ${state.city}`;
 
@@ -162,7 +209,7 @@ function renderGrid() {
       : `from ${usd.format(v.band[0])}`;
     const priceSuffix = state.type === "buyout" ? "/ venue" : "/ table";
     const card = document.createElement("article");
-    card.className = "v-card selected";
+    card.className = "v-card" + (compare ? " selected" : "");
     const delay = `${i * 55}ms`;
     card.style.animationDelay = delay;
     card.style.setProperty("--hue", (i * 40) % 360); // carnival: each card a different hue
@@ -171,9 +218,9 @@ function renderGrid() {
       <div class="v-photo" style="background:linear-gradient(150deg,${v.g[0]},${v.g[1]})">
         ${v.glyph}
         ${v.fav ? `<span class="v-fav">Guest favorite</span>` : ""}
-        <button class="v-heart" type="button" aria-label="Add or remove ${v.name}">
+        ${compare ? `<button class="v-heart" type="button" aria-label="Add or remove ${v.name}">
           <svg viewBox="0 0 32 32"><path d="M16 28C7.9 22.7 3 17.9 3 12.4 3 8.3 6.3 5 10.4 5c2.4 0 4.6 1.1 6 2.9C17.7 6.1 19.9 5 22.3 5 26.4 5 29 8.3 29 12.4c0 5.5-4.9 10.3-13 15.6z"/></svg>
-        </button>
+        </button>` : ""}
       </div>
       <div class="v-body">
         <div class="v-top">
@@ -182,19 +229,18 @@ function renderGrid() {
         </div>
         <div class="v-area">${v.area}</div>
         <div class="v-tags">${v.tags}</div>
-        <div class="v-price"><b>${priceLabel}</b> ${priceSuffix}</div>
-        <button class="v-book" type="button">Book this ${state.type === "buyout" ? "venue" : "table"}</button>
+        <div class="v-price"><b>${priceLabel}</b> ${priceSuffix}${compare ? "" : ` <span class="v-cta">View and book →</span>`}</div>
       </div>`;
     card.querySelector(".v-photo").style.animationDelay = delay; // sync the flash to the pop
-    card.addEventListener("click", () => toggleVenue(v.id, card));
-    card.querySelector(".v-book").addEventListener("click", (e) => {
-      e.stopPropagation();
-      bookSpecificVenue(v.id);
-    });
+    if (compare) {
+      card.addEventListener("click", () => toggleVenue(v.id, card));
+    } else {
+      card.addEventListener("click", () => openVenue(v.id));
+    }
     grid.appendChild(card);
   });
 
-  updateSendbar();
+  if (compare) updateSendbar();
 }
 
 function toggleVenue(id, card) {
@@ -212,6 +258,214 @@ function updateSendbar() {
   const n = state.selected.size;
   $("sendCount").textContent = n === 0 ? "No venues selected" : `Request quotes from ${n} venue${n > 1 ? "s" : ""}`;
   $("btnSend").disabled = n === 0;
+}
+
+/* ---------- book-and-approve flow (default) ---------- */
+
+function bindVenue() {
+  $("venueBack").addEventListener("click", () => showScreen("browse"));
+  $("bfRequest").addEventListener("click", openReqModal);
+}
+
+function openVenue(id) {
+  state.currentVenueId = id;
+  state.selectedPkgId = null;
+  syncNight();
+  renderVenue();
+  showScreen("venue");
+}
+
+function syncNight() {
+  const pn = parseInt($("fPartyNum").value, 10);
+  if (Number.isFinite(pn)) state.party = Math.min(2000, Math.max(1, pn));
+  state.date = $("fDate").value;
+  state.time = $("fTime").value;
+  state.occasion = $("fOccasion").value;
+}
+
+function renderVenue() {
+  const v = venueById(state.currentVenueId);
+  const pkgs = venuePackages(v);
+  const groups = [
+    { label: "Full venue", list: pkgs.filter((p) => p.type === "buyout") },
+    { label: "Tables", list: pkgs.filter((p) => p.type === "table") },
+  ];
+  // lead with whichever type the tab is on
+  if (state.type === "table") groups.reverse();
+
+  const pkgHtml = groups.map((g) => `
+    <div class="pkg-group">
+      <h3 class="pkg-group-title">${g.label}</h3>
+      ${g.list.map((p) => `
+        <button type="button" class="pkg" data-pkg="${p.id}">
+          <span class="pkg-radio" aria-hidden="true"></span>
+          <span class="pkg-main">
+            <span class="pkg-top"><b>${p.name}</b><span class="pkg-cap">${p.cap}</span></span>
+            <span class="pkg-inc">${p.includes.join(" · ")}</span>
+          </span>
+          <span class="pkg-price"><b>${usd.format(p.price)}</b><span>deposit ${usd.format(p.deposit)}</span></span>
+        </button>`).join("")}
+    </div>`).join("");
+
+  $("venueDetail").innerHTML = `
+    <div class="venue-hero" style="background:linear-gradient(150deg,${v.g[0]},${v.g[1]})">
+      <span class="venue-hero-glyph">${v.glyph}</span>
+      ${v.fav ? `<span class="v-fav">Guest favorite</span>` : ""}
+    </div>
+    <div class="venue-info">
+      <div class="venue-info-top">
+        <h1 class="venue-title">${v.name}</h1>
+        <span class="v-rating">${starSvg()} ${v.rating.toFixed(2)}</span>
+      </div>
+      <p class="venue-sub">${v.area} · ${v.tags}</p>
+      <div class="venue-night">
+        <span class="vn-text">${fmtDate(state.date)} · ${state.time} · ${state.party} people · ${state.occasion}</span>
+        <button type="button" class="venue-night-edit" id="venueEdit">Edit</button>
+      </div>
+    </div>
+    <h2 class="venue-section">Choose what to book</h2>
+    <div class="pkgs">${pkgHtml}</div>`;
+
+  $("venueEdit").addEventListener("click", () => showScreen("browse"));
+  $("venueDetail").querySelectorAll(".pkg").forEach((btn) =>
+    btn.addEventListener("click", () => selectPackage(btn.dataset.pkg))
+  );
+
+  state.selectedPkgId = null;
+  updateVenueFooter();
+}
+
+function selectPackage(pkgId) {
+  state.selectedPkgId = pkgId;
+  $("venueDetail").querySelectorAll(".pkg").forEach((b) =>
+    b.classList.toggle("sel", b.dataset.pkg === pkgId)
+  );
+  updateVenueFooter();
+}
+
+function updateVenueFooter() {
+  const footer = $("venueFooter");
+  const v = venueById(state.currentVenueId);
+  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
+  footer.classList.remove("hidden");
+  if (!p) {
+    $("bfPrice").textContent = "Select an option above";
+    $("bfDeposit").textContent = "";
+    $("bfRequest").disabled = true;
+  } else {
+    $("bfPrice").textContent = `${p.name} · ${usd.format(p.price)}`;
+    $("bfDeposit").textContent = `deposit ${usd.format(p.deposit)} to request`;
+    $("bfRequest").disabled = false;
+  }
+}
+
+function bindReqModal() {
+  $("reqClose").addEventListener("click", () => $("reqBackdrop").classList.add("hidden"));
+  $("reqBackdrop").addEventListener("click", (e) => { if (e.target === $("reqBackdrop")) $("reqBackdrop").classList.add("hidden"); });
+  $("reqSubmit").addEventListener("click", submitBooking);
+}
+
+function openReqModal() {
+  const v = venueById(state.currentVenueId);
+  const p = packageById(v, state.selectedPkgId);
+  if (!p) return;
+  $("reqVenue").textContent = v.name;
+  $("reqSummary").innerHTML = `
+    <div class="bline"><span>${p.name}</span><b>${usd.format(p.price)}</b></div>
+    <div class="bline"><span>${p.type === "buyout" ? "Full venue" : "Table"} · ${state.party} people</span><b>${fmtDate(state.date)} · ${state.time}</b></div>
+    <div class="bline"><span>Includes</span><b>${p.includes.join("<br>")}</b></div>
+    <div class="bline total"><span>Deposit to hold</span><b>${usd.format(p.deposit)}</b></div>`;
+  $("reqDep").textContent = usd.format(p.deposit);
+  $("reqBackdrop").classList.remove("hidden");
+}
+
+function submitBooking() {
+  const v = venueById(state.currentVenueId);
+  const p = packageById(v, state.selectedPkgId);
+  if (!p) return;
+  state.booking = {
+    venueId: v.id,
+    venueName: v.name,
+    pkg: p,
+    date: state.date,
+    time: state.time,
+    party: state.party,
+    occasion: state.occasion,
+    price: p.price,
+    deposit: p.deposit,
+    status: "pending",
+    code: "BK-ORL-" + Math.random().toString(36).slice(2, 6).toUpperCase(),
+    at: Date.now(),
+  };
+  $("reqBackdrop").classList.add("hidden");
+  renderPending();
+  showScreen("pending");
+  startPendingPoll();
+  toast(`Request sent to ${v.name}`);
+}
+
+function renderPending() {
+  const b = state.booking;
+  if (!b) return;
+  const declined = b.status === "declined";
+  $("pendingCard").className = "pending card" + (declined ? " declined" : "");
+  $("pendingCard").innerHTML = `
+    <div class="pending-badge ${declined ? "no" : ""}">${declined ? "Not available" : "Pending approval"}</div>
+    <h2 class="pending-title">${declined ? `${b.venueName} could not take this one` : `Request sent to ${b.venueName}`}</h2>
+    <p class="pending-sub">${declined
+      ? "No deposit was charged. Try another venue or another night."
+      : `${b.venueName} is reviewing your request. They will approve or decline shortly.`}</p>
+    <div class="pending-lines">
+      <div class="bline"><span>${b.pkg.name}</span><b>${usd.format(b.price)}</b></div>
+      <div class="bline"><span>${b.pkg.type === "buyout" ? "Full venue" : "Table"} · ${b.party} people · ${b.occasion}</span><b>${fmtDate(b.date)} · ${b.time}</b></div>
+      <div class="bline total"><span>Deposit ${declined ? "released" : "held"}</span><b>${usd.format(b.deposit)}</b></div>
+    </div>
+    ${declined
+      ? `<button class="btn-primary btn-big" id="pendingRetry">Back to venues</button>`
+      : `<div class="pending-live"><span class="pulse-dot"></span> Waiting on the venue…</div>
+         <button class="btn-line" id="pendingVenueSide">See it from the venue's side →</button>`}`;
+
+  if (declined) {
+    $("pendingRetry").addEventListener("click", resetCustomer);
+  } else {
+    $("pendingVenueSide").addEventListener("click", enterPromoterHome);
+  }
+}
+
+let pendingPoll = null;
+function startPendingPoll() {
+  clearInterval(pendingPoll);
+  pendingPoll = setInterval(() => {
+    if (!state.booking) { clearInterval(pendingPoll); return; }
+    const onPending = !$("screen-pending").classList.contains("hidden");
+    if (state.booking.status === "confirmed" && onPending) {
+      clearInterval(pendingPoll);
+      renderBookingConfirm();
+      showScreen("confirm");
+    } else if (state.booking.status === "declined" && onPending) {
+      renderPending();
+    }
+  }, 500);
+}
+
+function renderBookingConfirm() {
+  const b = state.booking;
+  if (!b) return;
+  clearInterval(pendingPoll);
+  $("confirmVenue").textContent = b.venueName;
+  $("confirmCode").innerHTML = `Confirmation <b>${b.code}</b>`;
+  $("confirmLines").innerHTML = `
+    <div class="bline"><span>${b.pkg.name}</span><b>${usd.format(b.price)}</b></div>
+    <div class="bline"><span>${b.pkg.type === "buyout" ? "Full venue" : "Table"} · ${b.party} people · ${b.occasion}</span><b>${fmtDate(b.date)} · ${b.time}</b></div>
+    <div class="bline total"><span>Deposit paid (credited to bill)</span><b>${usd.format(b.deposit)}</b></div>`;
+}
+
+function resetCustomer() {
+  clearInterval(pendingPoll);
+  state.booking = null;
+  state.currentVenueId = null;
+  state.selectedPkgId = null;
+  showScreen("browse");
 }
 
 /* ---------- request + simulation engine ---------- */
@@ -658,24 +912,42 @@ function enterPromoterHome(e) {
 }
 
 function initPromoterHome() {
-  PROMOTER.venue = VENUES[0]; // demo: you run Neon Garden
+  // if the customer has a live request, you are that venue's promoter
+  PROMOTER.venue = state.booking ? venueById(state.booking.venueId) : VENUES[0];
   $("pVenueName").textContent = PROMOTER.venue.name;
   $("pGreet").textContent = `Welcome back, ${PROMOTER.venue.name}`;
-  PROMOTER.requests = [
-    { id: "r1", type: "buyout", party: 40, date: "Sat, Aug 15", time: "10:00 PM", occasion: "Birthday", budget: 6000, status: "open", isNew: true },
-    { id: "r2", type: "table", party: 10, date: "Fri, Aug 14", time: "11:00 PM", occasion: "Bachelor / bachelorette", budget: 1500, status: "open", isNew: true },
-    { id: "r3", type: "buyout", party: 120, date: "Sat, Aug 22", time: "10:00 PM", occasion: "Corporate", budget: 14000, status: "open", isNew: false },
-  ];
+  buildPRequests();
   renderPStats();
   renderPReqs();
   renderPRecent();
 }
 
+function buildPRequests() {
+  const list = [];
+  const b = state.booking;
+  if (b) {
+    list.push({
+      id: "live", live: true,
+      title: b.pkg.name,
+      type: b.pkg.type, party: b.party,
+      date: fmtDate(b.date), time: b.time, occasion: b.occasion,
+      price: b.price, deposit: b.deposit,
+      status: b.status === "pending" ? "open" : b.status, // open | confirmed | declined
+      isNew: true,
+    });
+  }
+  list.push(
+    { id: "s1", title: "Full venue buyout", type: "buyout", party: 120, date: "Sat, Aug 22", time: "10:00 PM", occasion: "Corporate", price: 14000, deposit: 2800, status: "open", isNew: true },
+    { id: "s2", title: "VIP booth", type: "table", party: 10, date: "Fri, Aug 14", time: "11:00 PM", occasion: "Bachelor / bachelorette", price: 1500, deposit: 375, status: "open", isNew: false },
+  );
+  PROMOTER.requests = list;
+}
+
 function renderPStats() {
   const open = PROMOTER.requests.filter((r) => r.status === "open").length;
   const stats = [
-    { v: String(open), l: "Open requests" },
-    { v: "92%", l: "Response rate" },
+    { v: String(open), l: "Awaiting approval" },
+    { v: "92%", l: "Approval rate" },
     { v: "12", l: "Bookings this month" },
     { v: "$18,400", l: "Booked this month" },
   ];
@@ -689,85 +961,62 @@ function renderPRecent() {
     { d: "Bachelorette · 12 people · Jul 19", v: "$1,650" },
   ];
   $("pRecent").innerHTML = rows.map((r) =>
-    `<div class="p-recent-row"><span class="rr-left">${r.d}</span><span><b>${r.v}</b> · <span class="p-recent-won">Won</span></span></div>`).join("");
+    `<div class="p-recent-row"><span class="rr-left">${r.d}</span><span><b>${r.v}</b> · <span class="p-recent-won">Confirmed</span></span></div>`).join("");
 }
 
 function renderPReqs() {
   $("pReqs").innerHTML = PROMOTER.requests.map(pReqCard).join("");
   PROMOTER.requests.forEach((r) => {
     const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
-    on(`pSend-${r.id}`, "click", () => { r.expanded = true; renderPReqs(); });
-    on(`pCancel-${r.id}`, "click", () => { r.expanded = false; renderPReqs(); });
-    on(`pInc-${r.id}`, "click", (e) => { const c = e.target.closest(".chip"); if (c) c.classList.toggle("active"); });
-    on(`pPrice-${r.id}`, "input", (e) => {
-      const p = Number(e.target.value) || 0;
-      document.getElementById(`pDep-${r.id}`).value = roundTo(p * 0.2, 10);
-    });
-    on(`pSubmit-${r.id}`, "click", () => submitPQuote(r.id));
+    on(`pApprove-${r.id}`, "click", () => decideReq(r.id, "confirmed"));
+    on(`pDecline-${r.id}`, "click", () => decideReq(r.id, "declined"));
+    on(`pView-${r.id}`, "click", () => { renderBookingConfirm(); showScreen("confirm"); });
   });
 }
 
 function pReqCard(r) {
-  const tag = r.status === "won" ? `<span class="p-req-tag">Booked</span>`
-    : (r.isNew && r.status === "open") ? `<span class="p-req-tag new">New</span>` : "";
+  const tag = r.status === "confirmed" ? `<span class="p-req-tag ok">Confirmed</span>`
+    : r.status === "declined" ? `<span class="p-req-tag">Declined</span>`
+    : (r.isNew ? `<span class="p-req-tag new">New</span>` : "");
   const grid = `
     <div class="p-req-grid">
+      <div><small>Booking</small><b>${r.title}</b></div>
       <div><small>Date</small><b>${r.date}</b></div>
       <div><small>Start</small><b>${r.time}</b></div>
       <div><small>Party</small><b>${r.party} people</b></div>
       <div><small>Occasion</small><b>${r.occasion}</b></div>
-      <div><small>Budget</small><b>${usd.format(r.budget)}</b></div>
+      <div><small>Price</small><b>${usd.format(r.price)} · dep ${usd.format(r.deposit)}</b></div>
     </div>`;
 
   let foot;
-  if (r.status === "won") {
-    foot = `<div class="p-req-foot"><span class="p-req-status won">You won this booking. Deposit ${usd.format(r.quote.deposit)} received.</span></div>`;
-  } else if (r.status === "quoted") {
-    foot = `<div class="p-req-foot"><span class="p-req-status">Quote sent: ${usd.format(r.quote.total)} · deposit ${usd.format(r.quote.deposit)}. The customer is comparing.</span></div>`;
-  } else if (r.expanded) {
-    foot = pQuoteForm(r);
+  if (r.status === "confirmed") {
+    foot = `<div class="p-req-foot"><span class="p-req-status won">Approved. Deposit ${usd.format(r.deposit)} captured.</span>${r.live ? `<button type="button" class="btn-line" id="pView-${r.id}">View customer confirmation →</button>` : ""}</div>`;
+  } else if (r.status === "declined") {
+    foot = `<div class="p-req-foot"><span class="p-req-status">Declined. The customer's deposit was released.</span></div>`;
   } else {
-    foot = `<div class="p-req-foot"><span class="p-req-status">Sent to you and a few other venues.</span><button type="button" class="btn-primary" id="pSend-${r.id}">Send quote</button></div>`;
+    foot = `<div class="p-req-foot">
+      <span class="p-req-status">${r.live ? "A customer just requested this. Approve to confirm the booking." : "Requested directly. Approve to confirm."}</span>
+      <div class="p-req-actions">
+        <button type="button" class="btn-textlink" id="pDecline-${r.id}">Decline</button>
+        <button type="button" class="btn-primary" id="pApprove-${r.id}">Approve booking</button>
+      </div>
+    </div>`;
   }
 
-  return `<div class="p-req ${r.status === "won" ? "won" : ""}">
-    <div class="p-req-head">${tag}<span class="p-req-title">${r.type === "buyout" ? "Full venue" : "Table"} request</span></div>
+  return `<div class="p-req ${r.status === "confirmed" ? "won" : ""}">
+    <div class="p-req-head">${tag}<span class="p-req-title">${r.type === "buyout" ? "Full venue" : "Table"} request${r.live ? " · live" : ""}</span></div>
     ${grid}${foot}</div>`;
 }
 
-function pQuoteForm(r) {
-  const band = r.type === "buyout" ? PROMOTER.venue.buyout : PROMOTER.venue.band;
-  let sugg = roundTo((band[0] + band[1]) / 2, 25);
-  if (r.budget) sugg = roundTo(Math.min(sugg, r.budget), 25);
-  return `
-    <div class="p-quoteform">
-      <div class="pqf-row">
-        <label>Total price ($)<input type="number" id="pPrice-${r.id}" value="${sugg}" min="50" step="25" inputmode="numeric"></label>
-        <label>Deposit required ($)<input type="number" id="pDep-${r.id}" value="${roundTo(sugg * 0.2, 10)}" min="10" step="10" inputmode="numeric"></label>
-      </div>
-      <div class="pqf-inc"><div class="chips" id="pInc-${r.id}">
-        ${INCLUDES_POOL.slice(0, 6).map((inc, i) => `<button type="button" class="chip ${i < 2 ? "active" : ""}" data-inc="${inc}">${inc}</button>`).join("")}
-      </div></div>
-      <div class="pqf-actions">
-        <button type="button" class="btn-textlink" id="pCancel-${r.id}">Cancel</button>
-        <button type="button" class="btn-primary" id="pSubmit-${r.id}">Send quote</button>
-      </div>
-    </div>`;
-}
-
-function submitPQuote(id) {
+function decideReq(id, decision) {
   const r = PROMOTER.requests.find((x) => x.id === id);
   if (!r) return;
-  const total = Math.max(50, Number(document.getElementById(`pPrice-${id}`).value) || 0);
-  const deposit = Math.max(10, Number(document.getElementById(`pDep-${id}`).value) || 0);
-  r.quote = { total: roundTo(total, 5), deposit: roundTo(Math.min(deposit, total), 5) };
-  r.status = "quoted";
-  r.expanded = false;
+  r.status = decision;
   r.isNew = false;
+  if (r.live && state.booking) state.booking.status = decision;
   renderPReqs();
   renderPStats();
-  toast("Quote sent to the customer");
-  setTimeout(() => { if (r.status === "quoted") { r.status = "won"; renderPReqs(); } }, 2400); // simulate winning
+  toast(decision === "confirmed" ? "Booking approved" : "Request declined");
 }
 
 /* ---------- city picker (entry step) ---------- */
@@ -877,7 +1126,7 @@ function botTurn(launchCmd) {
   if (!c.party) { botSay("Got it. Roughly how many people?"); return; }
   const n = matchedVenues().length;
   if (launchCmd) { launchFromChat(); return; }
-  botSay(summarize(n), () => addAction(`Get quotes from ${n} ${n === 1 ? "venue" : "venues"}`, launchFromChat));
+  botSay(summarize(n), () => addAction(`Show me ${n} ${n === 1 ? "venue" : "venues"} for my night`, launchFromChat));
 }
 
 function summarize(n) {
@@ -888,9 +1137,8 @@ function summarize(n) {
     c.time || "10:00 PM",
     `${c.party} people`,
     c.occasion || "Night out",
-    c.budget ? `budget ${budgetLabel(c.budget)}` : "no set budget",
   ];
-  return `Here's what I've got: ${bits.join(" · ")}. I'll text ${n} ${n === 1 ? "venue" : "venues"} in ${state.city} to quote you.`;
+  return `Here's what I've got: ${bits.join(" · ")}. I'll line up ${n} ${n === 1 ? "venue" : "venues"} in ${state.city} with prices so you can book in a tap.`;
 }
 
 function launchFromChat() {
@@ -905,11 +1153,10 @@ function launchFromChat() {
   if (c.time) $("fTime").value = c.time;
   if (c.party) $("fPartyNum").value = c.party;
   if (c.occasion) $("fOccasion").value = c.occasion;
-  $("fBudget").value = c.budget || "";
-  state.budget = c.budget || null;
-  renderGrid();     // selects all venues, syncs date/time/occasion from inputs
+  renderGrid();     // rebuild the grid with the night context
   closeChat();
-  startRequest();   // fire the request and go to the board
+  showScreen("browse");
+  toast("Here are your venues. Tap one to see prices and book.");
 }
 
 /* ---- chat parsing ---- */
@@ -1072,8 +1319,12 @@ function showScreen(name) {
 function resetAll() {
   state.requestOpen = false;
   stopClock();
+  clearInterval(pendingPoll);
   state.quotes = [];
   state.booked = null;
+  state.booking = null;
+  state.currentVenueId = null;
+  state.selectedPkgId = null;
   state.humanVenueId = null;
   state.humanQuoted = false;
   $("promoterDot").classList.remove("live");
@@ -1081,6 +1332,7 @@ function resetAll() {
   $("ring").classList.remove("closed", "urgent");
   $("ringLabel").textContent = "left to quote";
   togglePanel(false);
+  applyModeUI();
   renderGrid();
   showScreen("browse");
 }
