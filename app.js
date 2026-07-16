@@ -90,6 +90,100 @@ function venuePackages(v) {
 
 function packageById(v, id) { return venuePackages(v).find((p) => p.id === id); }
 
+/* ============================================================
+   Dynamic date pricing + shared calendar
+   Ported from Emmett's PR #2 (feature/when-date-range-deals),
+   adapted to price the chosen package per night.
+   ============================================================ */
+
+const EARLY_BIRD_MAX = 0.18; // biggest early-bird discount, reached ~30 days out
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS_AHEAD = 6;
+
+function isoOf(dt) {
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const d = String(dt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+function isoAddDays(iso, n) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + n);
+  return isoOf(dt);
+}
+function nightsInRange(start, end, cap) {
+  if (!start || !end || end < start) return [];
+  const out = [];
+  let cur = start;
+  while (cur <= end && out.length < cap) { out.push(cur); cur = isoAddDays(cur, 1); }
+  return out;
+}
+// deterministic per-week wobble so long ranges vary
+function weekWobble(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const wk = Math.floor(Date.UTC(y, m - 1, d) / (7 * 864e5));
+  const s = Math.sin(wk * 12.9898) * 43758.5453;
+  return 0.94 + (s - Math.floor(s)) * 0.12; // 0.94 .. 1.06
+}
+function daysOut(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const now = new Date();
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((Date.UTC(y, m - 1, d) - today) / 864e5);
+}
+// early-bird: 0.6%/day out, capped at EARLY_BIRD_MAX
+function earlyBirdDiscount(iso) {
+  const out = daysOut(iso);
+  if (out <= 0) return 0;
+  return Math.min(EARLY_BIRD_MAX, out * 0.006);
+}
+function earlyBirdFactor(iso) { return 1 - earlyBirdDiscount(iso); }
+// weekday demand (weekends peak, midweek quiet)
+function busyFactor(iso) {
+  if (!iso) return 1;
+  const [y, m, d] = iso.split("-").map(Number);
+  const wd = new Date(y, m - 1, d).getDay();
+  const base = (wd === 5 || wd === 6) ? 1.28 : wd === 4 ? 1.08 : wd === 0 ? 1.00 : 0.82;
+  return base * weekWobble(iso);
+}
+function demandFactor(iso) { return iso ? busyFactor(iso) * earlyBirdFactor(iso) : 1; }
+function demandLabel(iso) {
+  const f = busyFactor(iso);
+  return f >= 1.15 ? "Peak" : f >= 1.0 ? "Busy" : "Quiet";
+}
+function cheapestNight(start, end) {
+  const nights = nightsInRange(start, end, 60);
+  if (!nights.length) return start;
+  return nights.reduce((best, iso) => demandFactor(iso) < demandFactor(best) ? iso : best, nights[0]);
+}
+function compactMoney(n) { return n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n}`; }
+function monthLabel(y, m) { return new Date(y, m, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }); }
+function fmtShort(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+function monthMeta(y, m) { return { startWd: new Date(y, m, 1).getDay(), days: new Date(y, m + 1, 0).getDate() }; }
+function calAtMin(y, m) { const n = new Date(); return y < n.getFullYear() || (y === n.getFullYear() && m <= n.getMonth()); }
+function calAtMax(y, m) { const n = new Date(); return new Date(y, m, 1) >= new Date(n.getFullYear(), n.getMonth() + MONTHS_AHEAD, 1); }
+function calShell(y, m, cells) {
+  return `
+    <div class="cal-nav">
+      <button type="button" class="cal-arrow" data-cal="prev" ${calAtMin(y, m) ? "disabled" : ""} aria-label="Previous month">‹</button>
+      <b>${monthLabel(y, m)}</b>
+      <button type="button" class="cal-arrow" data-cal="next" ${calAtMax(y, m) ? "disabled" : ""} aria-label="Next month">›</button>
+    </div>
+    <div class="cal-grid cal-dow">${DOW.map((d) => `<span>${d}</span>`).join("")}</div>
+    <div class="cal-grid">${cells}</div>`;
+}
+
+// price a package (or a base figure) for a given night
+function pkgTypeBase(v, type) {
+  const list = venuePackages(v).filter((p) => p.type === type);
+  return Math.min(...list.map((p) => p.price));
+}
+function priceForNight(base, iso) { return roundTo(base * demandFactor(iso), 25); }
+
 const $ = (id) => document.getElementById(id);
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const rand = (min, max) => Math.round(min + Math.random() * (max - min));
@@ -154,7 +248,7 @@ function bindBrowse() {
     })
   );
 
-  $("fDate").addEventListener("change", (e) => { state.date = e.target.value; });
+  $("fDate").addEventListener("change", (e) => { state.date = e.target.value; renderDealStrip(); });
   $("fTime").addEventListener("change", (e) => { state.time = e.target.value; });
   $("fOccasion").addEventListener("change", (e) => { state.occasion = e.target.value; });
 
@@ -241,6 +335,59 @@ function renderGrid() {
   });
 
   if (compare) updateSendbar();
+  renderDealStrip();
+}
+
+// deal strip: cheapest nights over the next 4 weeks (ported from Emmett's PR #2)
+function renderDealStrip() {
+  const strip = $("dealStrip");
+  if (state.mode !== "book") { strip.classList.add("hidden"); return; }
+  const start = isoOf(new Date());
+  const end = isoAddDays(start, 27);
+  const nights = nightsInRange(start, end, 42);
+  if (nights.length < 2) { strip.classList.add("hidden"); return; }
+  strip.classList.remove("hidden");
+  const minF = Math.min(...nights.map(demandFactor));
+  const ref = state.type === "buyout" ? 5000 : 700; // representative "from" figure
+  $("dealDays").innerHTML = nights.map((iso) => dealDayChip(iso, minF, ref)).join("");
+  $("dealDays").querySelectorAll(".deal-day").forEach((btn) =>
+    btn.addEventListener("click", () => pickNight(btn.dataset.iso))
+  );
+  const best = cheapestNight(start, end);
+  const save = Math.round((demandFactor(state.date) / demandFactor(best) - 1) * 100);
+  $("dealStripHint").textContent = state.date === best
+    ? `${fmtDate(best)} is the cheapest night this month`
+    : `${fmtDate(best)} is cheapest${state.date ? ` · you picked ${fmtDate(state.date)} (+${save}%)` : ""}`;
+}
+
+function dealDayChip(iso, minF, basis) {
+  const f = demandFactor(iso);
+  const up = Math.round((f / minF - 1) * 100);
+  const deal = up <= 0;
+  const delta = deal ? "Best deal" : `+${up}%`;
+  const price = usd.format(priceForNight(basis, iso));
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const dow = dt.toLocaleDateString("en-US", { weekday: "short" });
+  const day = dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const lbl = demandLabel(iso);
+  const picked = iso === state.date;
+  const eb = Math.round(earlyBirdDiscount(iso) * 100);
+  const ebTag = eb >= 5 ? `<span class="dd-early">Early bird -${eb}%</span>` : "";
+  return `<button type="button" class="deal-day${deal ? " is-deal" : ""}${picked ? " is-picked" : ""}" data-iso="${iso}" aria-pressed="${picked}">
+      <span class="dd-dow">${dow}</span>
+      <span class="dd-date">${day}</span>
+      <span class="dd-demand lvl-${lbl.toLowerCase()}">${lbl}</span>
+      <span class="dd-price">~${price}</span>
+      <span class="dd-delta${deal ? " good" : ""}">${delta}</span>
+      ${ebTag}</button>`;
+}
+
+function pickNight(iso) {
+  state.date = iso;
+  $("fDate").value = iso;
+  renderDealStrip();
+  toast(`${fmtDate(iso)} picked. Open a venue to book it.`);
 }
 
 function toggleVenue(id, card) {
@@ -283,6 +430,28 @@ function syncNight() {
   state.occasion = $("fOccasion").value;
 }
 
+const AMENITY_POOL = ["Full bar", "Bottle service", "Coat check", "Premium sound system", "Skip-the-line entry", "Card and cash", "Outdoor area", "Private restrooms"];
+const SHOT_NAMES = ["Main room", "The bar", "VIP area", "The floor"];
+
+function galleryShots(v) {
+  return SHOT_NAMES.map((name, i) => {
+    const a = v.g[i % 2], b = v.g[(i + 1) % 2];
+    const angle = 120 + i * 35;
+    return `<figure class="vd-shot" style="background:linear-gradient(${angle}deg,${a},${b})"><figcaption>${name}</figcaption></figure>`;
+  }).join("");
+}
+function venueBlurb(v) {
+  const t = v.tags.split(" · ");
+  return `${v.name} is a ${t[0].toLowerCase()} spot in ${v.area}${t[1] ? `, known for ${t[1].toLowerCase()}` : ""}. Reserve a table or take the whole room, then lock your night below.`;
+}
+function venueAmenities(v) {
+  const fromTags = v.tags.split(" · ");
+  return [...new Set([...fromTags, ...AMENITY_POOL])].slice(0, 6);
+}
+function venueCapacity(v) { return `Up to ${roundTo(v.buyout[1] / 40, 10)} guests`; }
+
+let calY, calM; // month shown in the venue night calendar
+
 function renderVenue() {
   const v = venueById(state.currentVenueId);
   const pkgs = venuePackages(v);
@@ -290,7 +459,6 @@ function renderVenue() {
     { label: "Full venue", list: pkgs.filter((p) => p.type === "buyout") },
     { label: "Tables", list: pkgs.filter((p) => p.type === "table") },
   ];
-  // lead with whichever type the tab is on
   if (state.type === "table") groups.reverse();
 
   const pkgHtml = groups.map((g) => `
@@ -303,28 +471,44 @@ function renderVenue() {
             <span class="pkg-top"><b>${p.name}</b><span class="pkg-cap">${p.cap}</span></span>
             <span class="pkg-inc">${p.includes.join(" · ")}</span>
           </span>
-          <span class="pkg-price"><b>${usd.format(p.price)}</b><span>deposit ${usd.format(p.deposit)}</span></span>
+          <span class="pkg-price"><b>from ${usd.format(p.price)}</b><span>price varies by night</span></span>
         </button>`).join("")}
     </div>`).join("");
 
   $("venueDetail").innerHTML = `
-    <div class="venue-hero" style="background:linear-gradient(150deg,${v.g[0]},${v.g[1]})">
-      <span class="venue-hero-glyph">${v.glyph}</span>
-      ${v.fav ? `<span class="v-fav">Guest favorite</span>` : ""}
-    </div>
-    <div class="venue-info">
-      <div class="venue-info-top">
-        <h1 class="venue-title">${v.name}</h1>
+    <div class="vd">
+      <div class="vd-hero" style="background:linear-gradient(150deg,${v.g[0]},${v.g[1]})">
+        <span class="vd-glyph">${v.glyph}</span>
+        ${v.fav ? `<span class="v-fav">Guest favorite</span>` : ""}
+      </div>
+      <div class="vd-gallery">${galleryShots(v)}</div>
+      <div class="vd-head">
+        <div>
+          <div class="vd-name">${v.name}</div>
+          <p class="vd-sub">${v.area} · ${v.tags}</p>
+        </div>
         <span class="v-rating">${starSvg()} ${v.rating.toFixed(2)}</span>
       </div>
-      <p class="venue-sub">${v.area} · ${v.tags}</p>
-      <div class="venue-night">
-        <span class="vn-text">${fmtDate(state.date)} · ${state.time} · ${state.party} people · ${state.occasion}</span>
-        <button type="button" class="venue-night-edit" id="venueEdit">Edit</button>
+      <p class="vd-blurb">${venueBlurb(v)}</p>
+      <div class="vd-facts">
+        <div><small>Capacity</small><b>${venueCapacity(v)}</b></div>
+        <div><small>Hours</small><b>9:00 PM to 2:00 AM</b></div>
+        <div><small>Neighborhood</small><b>${v.area}</b></div>
+        <div><small>Your night</small><b>${state.party} people · ${state.occasion} <button type="button" class="venue-night-edit" id="venueEdit">Edit</button></b></div>
       </div>
-    </div>
-    <h2 class="venue-section">Choose what to book</h2>
-    <div class="pkgs">${pkgHtml}</div>`;
+      <div class="vd-amen">
+        <h3>What's here</h3>
+        <ul class="vd-amen-list">${venueAmenities(v).map((a) => `<li>${a}</li>`).join("")}</ul>
+      </div>
+
+      <h2 class="venue-section">Choose what to book</h2>
+      <div class="pkgs">${pkgHtml}</div>
+
+      <div class="vd-deals">
+        <div class="vd-deals-head"><h3>Pick your night</h3><span id="vdDealsHint"></span></div>
+        <div class="vd-cal" id="vdCal"></div>
+      </div>
+    </div>`;
 
   $("venueEdit").addEventListener("click", () => showScreen("browse"));
   $("venueDetail").querySelectorAll(".pkg").forEach((btn) =>
@@ -332,14 +516,55 @@ function renderVenue() {
   );
 
   state.selectedPkgId = null;
-  updateVenueFooter();
+  // start the calendar on the month of the chosen night (default from browse)
+  const seed = (state.date && daysOut(state.date) >= 0) ? state.date : isoOf(new Date());
+  const [sy, sm] = seed.split("-").map(Number);
+  calY = sy; calM = sm - 1;
+  if (!state.date || daysOut(state.date) < 0) state.date = seed;
+  renderVenueCalendar();
 }
 
 function selectPackage(pkgId) {
   state.selectedPkgId = pkgId;
-  $("venueDetail").querySelectorAll(".pkg").forEach((b) =>
-    b.classList.toggle("sel", b.dataset.pkg === pkgId)
+  $("venueDetail").querySelectorAll(".pkg").forEach((b) => b.classList.toggle("sel", b.dataset.pkg === pkgId));
+  renderVenueCalendar(); // prices update to the chosen package
+}
+
+function renderVenueCalendar() {
+  const v = venueById(state.currentVenueId);
+  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
+  const base = p ? p.price : pkgTypeBase(v, state.type);
+  const todayIso = isoOf(new Date());
+  const { startWd, days } = monthMeta(calY, calM);
+
+  const selectable = [];
+  for (let d = 1; d <= days; d++) { const iso = isoOf(new Date(calY, calM, d)); if (iso >= todayIso) selectable.push(iso); }
+  const minF = selectable.length ? Math.min(...selectable.map(demandFactor)) : 1;
+
+  let cells = "";
+  for (let i = 0; i < startWd; i++) cells += `<div class="cal-cell empty"></div>`;
+  for (let d = 1; d <= days; d++) {
+    const iso = isoOf(new Date(calY, calM, d));
+    if (iso < todayIso) { cells += `<div class="cal-cell past"><span class="cal-num">${d}</span></div>`; continue; }
+    const total = priceForNight(base, iso);
+    const deal = demandFactor(iso) <= minF * 1.0001;
+    const eb = Math.round(earlyBirdDiscount(iso) * 100);
+    const picked = iso === state.date;
+    const tag = deal ? `<span class="cal-tag">Deal</span>` : eb >= 5 ? `<span class="cal-tag early">-${eb}%</span>` : "";
+    cells += `<button type="button" class="cal-cell priced${picked ? " is-picked" : ""}${deal ? " is-deal" : ""}" data-iso="${iso}">
+      <span class="cal-dot lvl-${demandLabel(iso).toLowerCase()}"></span>
+      <span class="cal-num">${d}</span>
+      <span class="cal-price">${compactMoney(total)}</span>
+      ${tag}</button>`;
+  }
+
+  $("vdCal").innerHTML = calShell(calY, calM, cells);
+  $("vdCal").querySelector('[data-cal="prev"]').addEventListener("click", () => { calM--; if (calM < 0) { calM = 11; calY--; } renderVenueCalendar(); });
+  $("vdCal").querySelector('[data-cal="next"]').addEventListener("click", () => { calM++; if (calM > 11) { calM = 0; calY++; } renderVenueCalendar(); });
+  $("vdCal").querySelectorAll(".cal-cell[data-iso]").forEach((btn) =>
+    btn.addEventListener("click", () => { state.date = btn.dataset.iso; renderVenueCalendar(); })
   );
+  $("vdDealsHint").textContent = "Highlighted nights are cheapest. Midweek and booking early save the most.";
   updateVenueFooter();
 }
 
@@ -349,14 +574,26 @@ function updateVenueFooter() {
   const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
   footer.classList.remove("hidden");
   if (!p) {
-    $("bfPrice").textContent = "Select an option above";
-    $("bfDeposit").textContent = "";
+    $("bfPrice").textContent = "Choose an option above";
+    $("bfDeposit").textContent = `${fmtDate(state.date)} selected`;
     $("bfRequest").disabled = true;
   } else {
-    $("bfPrice").textContent = `${p.name} · ${usd.format(p.price)}`;
-    $("bfDeposit").textContent = `deposit ${usd.format(p.deposit)} to request`;
+    const total = priceForNight(p.price, state.date);
+    const deposit = roundTo((total * p.depPct) / 100, 10);
+    $("bfPrice").textContent = `${p.name} · ${usd.format(total)}`;
+    $("bfDeposit").textContent = `${fmtDate(state.date)} · deposit ${usd.format(deposit)}`;
     $("bfRequest").disabled = false;
   }
+}
+
+// the price + deposit for the current package on the current night
+function currentBooking() {
+  const v = venueById(state.currentVenueId);
+  const p = packageById(v, state.selectedPkgId);
+  if (!p) return null;
+  const total = priceForNight(p.price, state.date);
+  const deposit = roundTo((total * p.depPct) / 100, 10);
+  return { v, p, total, deposit, night: state.date };
 }
 
 function bindReqModal() {
@@ -366,23 +603,24 @@ function bindReqModal() {
 }
 
 function openReqModal() {
-  const v = venueById(state.currentVenueId);
-  const p = packageById(v, state.selectedPkgId);
-  if (!p) return;
+  const cb = currentBooking();
+  if (!cb) return;
+  const { v, p, total, deposit } = cb;
+  const eb = Math.round(earlyBirdDiscount(state.date) * 100);
   $("reqVenue").textContent = v.name;
   $("reqSummary").innerHTML = `
-    <div class="bline"><span>${p.name}</span><b>${usd.format(p.price)}</b></div>
+    <div class="bline"><span>${p.name} · ${demandLabel(state.date)} night${eb >= 5 ? ` · early bird -${eb}%` : ""}</span><b>${usd.format(total)}</b></div>
     <div class="bline"><span>${p.type === "buyout" ? "Full venue" : "Table"} · ${state.party} people</span><b>${fmtDate(state.date)} · ${state.time}</b></div>
     <div class="bline"><span>Includes</span><b>${p.includes.join("<br>")}</b></div>
-    <div class="bline total"><span>Deposit to hold</span><b>${usd.format(p.deposit)}</b></div>`;
-  $("reqDep").textContent = usd.format(p.deposit);
+    <div class="bline total"><span>Deposit to hold</span><b>${usd.format(deposit)}</b></div>`;
+  $("reqDep").textContent = usd.format(deposit);
   $("reqBackdrop").classList.remove("hidden");
 }
 
 function submitBooking() {
-  const v = venueById(state.currentVenueId);
-  const p = packageById(v, state.selectedPkgId);
-  if (!p) return;
+  const cb = currentBooking();
+  if (!cb) return;
+  const { v, p, total, deposit } = cb;
   state.booking = {
     venueId: v.id,
     venueName: v.name,
@@ -391,8 +629,8 @@ function submitBooking() {
     time: state.time,
     party: state.party,
     occasion: state.occasion,
-    price: p.price,
-    deposit: p.deposit,
+    price: total,
+    deposit: deposit,
     status: "pending",
     code: "BK-ORL-" + Math.random().toString(36).slice(2, 6).toUpperCase(),
     at: Date.now(),

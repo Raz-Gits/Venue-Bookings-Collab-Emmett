@@ -10,6 +10,20 @@ A nightlife booking marketplace: customers browse venues and request a table or 
 
 Start manual, get automatic. At launch, a promoter gets a **text plus an in-app request**, and quotes each one by hand inside the 1-hour window. Over time the goal is that venues **publish their live availability and exact pricing/hours directly** (on their own page/site), so a customer sees bookable inventory instantly instead of waiting on quotes. Quoting is the bootstrap; published live availability is the destination. The demo models the manual start.
 
+## Update 2026-07-15 (booking model)
+
+Default customer flow is now **book-and-approve**, not the quote auction:
+browse → venue page → pick a package + a night → **Request to book** → the
+venue **approves in the promoter dashboard** → confirmed. Venues list **set
+prices/packages** (tables + full-venue buyouts). The **compare-quotes** auction
+is kept as an optional mode via a toggle on the browse screen (not deleted).
+
+Folded in from **Emmett's PR #2**: **dynamic date pricing** (weekday demand,
+Quiet/Busy/Peak, early-bird discount up to 18% the further out you book), a
+shared month calendar for picking the night, a browse "deal nights" strip, and
+a richer venue page (gallery, facts, amenities). Emmett's PR used *instant*
+book; we kept our **venue-approval** step on top of their pricing.
+
 ## Decisions
 
 | Decision | Answer |
