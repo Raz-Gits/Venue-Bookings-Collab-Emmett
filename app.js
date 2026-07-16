@@ -90,6 +90,7 @@ const roundTo = (n, step) => Math.round(n / step) * step;
   bindBrowse();
   bindBoard();
   bindPromoter();
+  bindPromoterApp();
   bindBooking();
   bindChat();
 
@@ -638,6 +639,137 @@ function wireQuoteForm(v) {
   });
 }
 
+/* ---------- promoter side: login + dashboard demo ---------- */
+
+const PROMOTER = { venue: null, requests: [] };
+
+function bindPromoterApp() {
+  $("btnPromoterEntry").addEventListener("click", () => showScreen("plogin"));
+  $("pBackCustomer").addEventListener("click", () => showScreen("city"));
+  $("pLogin").addEventListener("click", enterPromoterHome);
+  $("pSkip").addEventListener("click", enterPromoterHome);
+  $("pLogout").addEventListener("click", () => showScreen("city"));
+}
+
+function enterPromoterHome(e) {
+  if (e) e.preventDefault();
+  initPromoterHome();
+  showScreen("phome");
+}
+
+function initPromoterHome() {
+  PROMOTER.venue = VENUES[0]; // demo: you run Neon Garden
+  $("pVenueName").textContent = PROMOTER.venue.name;
+  $("pGreet").textContent = `Welcome back, ${PROMOTER.venue.name}`;
+  PROMOTER.requests = [
+    { id: "r1", type: "buyout", party: 40, date: "Sat, Aug 15", time: "10:00 PM", occasion: "Birthday", budget: 6000, status: "open", isNew: true },
+    { id: "r2", type: "table", party: 10, date: "Fri, Aug 14", time: "11:00 PM", occasion: "Bachelor / bachelorette", budget: 1500, status: "open", isNew: true },
+    { id: "r3", type: "buyout", party: 120, date: "Sat, Aug 22", time: "10:00 PM", occasion: "Corporate", budget: 14000, status: "open", isNew: false },
+  ];
+  renderPStats();
+  renderPReqs();
+  renderPRecent();
+}
+
+function renderPStats() {
+  const open = PROMOTER.requests.filter((r) => r.status === "open").length;
+  const stats = [
+    { v: String(open), l: "Open requests" },
+    { v: "92%", l: "Response rate" },
+    { v: "12", l: "Bookings this month" },
+    { v: "$18,400", l: "Booked this month" },
+  ];
+  $("pStats").innerHTML = stats.map((s) => `<div class="p-stat"><b>${s.v}</b><span>${s.l}</span></div>`).join("");
+}
+
+function renderPRecent() {
+  const rows = [
+    { d: "Birthday · 30 people · Aug 2", v: "$4,200" },
+    { d: "Corporate buyout · 90 people · Jul 26", v: "$11,500" },
+    { d: "Bachelorette · 12 people · Jul 19", v: "$1,650" },
+  ];
+  $("pRecent").innerHTML = rows.map((r) =>
+    `<div class="p-recent-row"><span class="rr-left">${r.d}</span><span><b>${r.v}</b> · <span class="p-recent-won">Won</span></span></div>`).join("");
+}
+
+function renderPReqs() {
+  $("pReqs").innerHTML = PROMOTER.requests.map(pReqCard).join("");
+  PROMOTER.requests.forEach((r) => {
+    const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
+    on(`pSend-${r.id}`, "click", () => { r.expanded = true; renderPReqs(); });
+    on(`pCancel-${r.id}`, "click", () => { r.expanded = false; renderPReqs(); });
+    on(`pInc-${r.id}`, "click", (e) => { const c = e.target.closest(".chip"); if (c) c.classList.toggle("active"); });
+    on(`pPrice-${r.id}`, "input", (e) => {
+      const p = Number(e.target.value) || 0;
+      document.getElementById(`pDep-${r.id}`).value = roundTo(p * 0.2, 10);
+    });
+    on(`pSubmit-${r.id}`, "click", () => submitPQuote(r.id));
+  });
+}
+
+function pReqCard(r) {
+  const tag = r.status === "won" ? `<span class="p-req-tag">Booked</span>`
+    : (r.isNew && r.status === "open") ? `<span class="p-req-tag new">New</span>` : "";
+  const grid = `
+    <div class="p-req-grid">
+      <div><small>Date</small><b>${r.date}</b></div>
+      <div><small>Start</small><b>${r.time}</b></div>
+      <div><small>Party</small><b>${r.party} people</b></div>
+      <div><small>Occasion</small><b>${r.occasion}</b></div>
+      <div><small>Budget</small><b>${usd.format(r.budget)}</b></div>
+    </div>`;
+
+  let foot;
+  if (r.status === "won") {
+    foot = `<div class="p-req-foot"><span class="p-req-status won">You won this booking. Deposit ${usd.format(r.quote.deposit)} received.</span></div>`;
+  } else if (r.status === "quoted") {
+    foot = `<div class="p-req-foot"><span class="p-req-status">Quote sent: ${usd.format(r.quote.total)} · deposit ${usd.format(r.quote.deposit)}. The customer is comparing.</span></div>`;
+  } else if (r.expanded) {
+    foot = pQuoteForm(r);
+  } else {
+    foot = `<div class="p-req-foot"><span class="p-req-status">Sent to you and a few other venues.</span><button type="button" class="btn-primary" id="pSend-${r.id}">Send quote</button></div>`;
+  }
+
+  return `<div class="p-req ${r.status === "won" ? "won" : ""}">
+    <div class="p-req-head">${tag}<span class="p-req-title">${r.type === "buyout" ? "Full venue" : "Table"} request</span></div>
+    ${grid}${foot}</div>`;
+}
+
+function pQuoteForm(r) {
+  const band = r.type === "buyout" ? PROMOTER.venue.buyout : PROMOTER.venue.band;
+  let sugg = roundTo((band[0] + band[1]) / 2, 25);
+  if (r.budget) sugg = roundTo(Math.min(sugg, r.budget), 25);
+  return `
+    <div class="p-quoteform">
+      <div class="pqf-row">
+        <label>Total price ($)<input type="number" id="pPrice-${r.id}" value="${sugg}" min="50" step="25" inputmode="numeric"></label>
+        <label>Deposit required ($)<input type="number" id="pDep-${r.id}" value="${roundTo(sugg * 0.2, 10)}" min="10" step="10" inputmode="numeric"></label>
+      </div>
+      <div class="pqf-inc"><div class="chips" id="pInc-${r.id}">
+        ${INCLUDES_POOL.slice(0, 6).map((inc, i) => `<button type="button" class="chip ${i < 2 ? "active" : ""}" data-inc="${inc}">${inc}</button>`).join("")}
+      </div></div>
+      <div class="pqf-actions">
+        <button type="button" class="btn-textlink" id="pCancel-${r.id}">Cancel</button>
+        <button type="button" class="btn-primary" id="pSubmit-${r.id}">Send quote</button>
+      </div>
+    </div>`;
+}
+
+function submitPQuote(id) {
+  const r = PROMOTER.requests.find((x) => x.id === id);
+  if (!r) return;
+  const total = Math.max(50, Number(document.getElementById(`pPrice-${id}`).value) || 0);
+  const deposit = Math.max(10, Number(document.getElementById(`pDep-${id}`).value) || 0);
+  r.quote = { total: roundTo(total, 5), deposit: roundTo(Math.min(deposit, total), 5) };
+  r.status = "quoted";
+  r.expanded = false;
+  r.isNew = false;
+  renderPReqs();
+  renderPStats();
+  toast("Quote sent to the customer");
+  setTimeout(() => { if (r.status === "quoted") { r.status = "won"; renderPReqs(); } }, 2400); // simulate winning
+}
+
 /* ---------- city picker (entry step) ---------- */
 
 const CITIES = [
@@ -932,6 +1064,8 @@ function scrollChat() { const l = $("chatLog"); l.scrollTop = l.scrollHeight; }
 function showScreen(name) {
   document.querySelectorAll(".screen").forEach((s) => s.classList.add("hidden"));
   $("screen-" + name).classList.remove("hidden");
+  const promoterMode = name === "plogin" || name === "phome";
+  document.querySelector(".topbar").style.display = promoterMode ? "none" : "";
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 

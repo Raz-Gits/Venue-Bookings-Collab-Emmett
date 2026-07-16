@@ -39,6 +39,10 @@
         <div class="city-suggest hidden" id="citySuggest" role="listbox"></div>
       </div>
     </div>
+    <div class="promoter-entry">
+      <span>Run a venue or work the door?</span>
+      <button type="button" class="btn-line" id="btnPromoterEntry">I'm a promoter →</button>
+    </div>
   </section>
 
   <!-- ============ BROWSE + BUILD REQUEST ============ -->
@@ -159,6 +163,47 @@
       <div class="confirm-lines" id="confirmLines"></div>
       <p class="confirm-fine">A text confirmation was sent to your phone <em>(simulated)</em>. Your deposit is credited toward your bill at the venue. BookOut's 10% fee is paid by the venue, so you pay $0 in fees.</p>
       <button class="btn-primary btn-big" id="btnNewSearch">Plan another night</button>
+    </div>
+  </section>
+
+  <!-- ============ PROMOTER LOGIN ============ -->
+  <section class="screen hidden" id="screen-plogin">
+    <div class="plogin">
+      <div class="plogin-card card">
+        <div class="p-brand">bookout<i>◈</i> <b>for venues</b></div>
+        <h1 class="plogin-title">Promoter log in</h1>
+        <p class="plogin-sub">See incoming requests and send quotes for your venue.</p>
+        <label class="field"><span>Email</span>
+          <input type="email" id="pEmail" value="me@neongarden.co" /></label>
+        <label class="field"><span>Password</span>
+          <input type="password" id="pPass" value="demo1234" /></label>
+        <button class="btn-primary btn-big" id="pLogin">Log in</button>
+        <button type="button" class="btn-textlink" id="pSkip">Skip for now (demo)</button>
+        <p class="plogin-note">Demo login. No real account, nothing is stored or sent.</p>
+        <button type="button" class="btn-textlink plogin-back" id="pBackCustomer">Not a promoter? Back to booking</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PROMOTER DASHBOARD ============ -->
+  <section class="screen hidden" id="screen-phome">
+    <div class="p-topbar">
+      <div class="p-brand">bookout<i>◈</i> <b>for venues</b></div>
+      <div class="p-topbar-right">
+        <span class="p-venue-name" id="pVenueName">Neon Garden</span>
+        <button type="button" class="btn-textlink" id="pLogout">Log out</button>
+      </div>
+    </div>
+    <div class="p-body">
+      <div class="p-greeting">
+        <h1 id="pGreet">Welcome back</h1>
+        <p>Here is what is coming in tonight.</p>
+      </div>
+      <div class="p-stats" id="pStats"></div>
+      <h2 class="p-section">Incoming requests</h2>
+      <div class="p-reqs" id="pReqs"></div>
+      <h2 class="p-section">Recent bookings</h2>
+      <div class="p-recent" id="pRecent"></div>
     </div>
   </section>
 
