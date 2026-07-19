@@ -82,6 +82,8 @@ const state = {
   occasion: "Night out",
   currentVenueId: null,   // venue open in the detail page
   selectedPkgId: null,    // package chosen in the detail page
+  nightPicked: false,     // has the customer explicitly chosen a night? until then the card says "From"
+  showCalPrices: false,   // nightly prices in the calendar cells are opt-in (Airbnb-quiet by default)
   booking: null,          // the live request-to-book: {venueId, pkg, ..., status}
 };
 
@@ -541,7 +543,7 @@ function renderCompare() {
     rowEl.addEventListener("click", () => {
       state.date = rowEl.dataset.night; // jump straight to that venue on its cheapest night
       $("fDate").value = state.date;
-      openVenue(rowEl.dataset.id);
+      openVenue(rowEl.dataset.id, { nightPicked: true });
     })
   );
 }
@@ -564,11 +566,13 @@ function bindVenue() {
   });
 }
 
-function openVenue(id) {
+function openVenue(id, opts = {}) {
   state.currentVenueId = id;
   state.selectedPkgId = null;
   state.addons = {};
   syncNight();
+  // dates chosen in browse (or a compare row) count as a picked night; otherwise the card opens on "From"
+  state.nightPicked = opts.nightPicked !== undefined ? opts.nightPicked : !!(state.range.start && state.range.end);
   renderVenue();
   showScreen("venue");
 }
@@ -709,7 +713,10 @@ function renderVenue() {
                 </div>
                 <div class="vd-cal" id="vdCal"></div>
                 <div class="vb-calfoot">
-                  <button type="button" class="btn-textlink" id="vbCheapest">Jump to cheapest night</button>
+                  <span class="vb-callinks">
+                    <button type="button" class="btn-textlink" id="vbShowPrices">Show nightly prices</button>
+                    <button type="button" class="btn-textlink" id="vbCheapest">Jump to cheapest night</button>
+                  </span>
                   <button type="button" class="vb-close" id="vbCalClose">Close</button>
                 </div>
               </div></div>
@@ -735,6 +742,7 @@ function renderVenue() {
             <div class="vb-note" id="vbDep"></div>
             <button type="button" class="btn-primary btn-big" id="bfRequest" disabled>Book this night</button>
             <p class="vb-fine">Deposit charged now and credited to your bill. Refunded in full, instantly, if the club can't host you.</p>
+            <button type="button" class="btn-textlink vb-compare" id="vbCompare">Compare prices across venues</button>
           </div>
         </aside>
       </div>
@@ -767,11 +775,18 @@ function renderVenue() {
   $("vbCheapest").addEventListener("click", () => {
     const { start, end } = compareWindow();
     state.date = cheapestNight(start, end);
+    state.nightPicked = true;
     $("fDate").value = state.date;
     const [y, m] = state.date.split("-").map(Number);
     calY = y; calM = m - 1;
     renderVenueCalendar();
+    updateBookCardCalc();
   });
+  $("vbShowPrices").addEventListener("click", () => {
+    state.showCalPrices = !state.showCalPrices;
+    renderVenueCalendar();
+  });
+  $("vbCompare").addEventListener("click", openCompare);
   const bump = (d) => {
     state.party = Math.min(2000, Math.max(1, state.party + d));
     $("fPartyNum").value = state.party;
@@ -800,6 +815,7 @@ function renderVenue() {
   calY = sy; calM = sm - 1;
   if (!state.date || daysOut(state.date) < 0) state.date = seed;
   renderVenueCalendar();
+  if (state.nightPicked) updateBookCardCalc(); // arriving with dates chosen: calculate, then show the real price
 }
 
 function selectPackage(pkgId) {
@@ -809,6 +825,7 @@ function selectPackage(pkgId) {
   if (!p || p.type !== "buyout") state.addons = {}; // added tables only ride on a buyout
   $("venueDetail").querySelectorAll(".pkg").forEach((b) => b.classList.toggle("sel", b.dataset.pkg === pkgId));
   renderVenueCalendar(); // prices update to the chosen package
+  if (state.nightPicked) updateBookCardCalc(); // repricing an already-picked night gets the calculating beat too
 }
 
 /* ---- add tables onto a full-venue buyout ---- */
@@ -869,6 +886,7 @@ function renderVenueCalendar() {
   const r = state.range;
   const ranged = r.start && r.end;
 
+  const showP = state.showCalPrices; // cells stay quiet (dates only) until the customer asks for prices
   let cells = "";
   for (let i = 0; i < startWd; i++) cells += `<div class="cal-cell empty"></div>`;
   for (let d = 1; d <= days; d++) {
@@ -878,37 +896,58 @@ function renderVenueCalendar() {
     const total = priceForNight(base, iso);
     const deal = demandFactor(iso) <= minF * 1.0001;
     const eb = Math.round(earlyBirdDiscount(iso) * 100);
-    const picked = iso === state.date;
     const inRange = ranged && iso >= r.start && iso <= r.end;
     const tag = deal ? `<span class="cal-tag">Deal</span>` : eb >= 5 ? `<span class="cal-tag early">-${eb}%</span>` : "";
-    cells += `<button type="button" class="cal-cell priced${picked ? " is-picked" : ""}${deal ? " is-deal" : ""}${inRange ? " in-range" : ""}${today ? " is-today" : ""}" data-iso="${iso}">
-      <span class="cal-dot lvl-${demandLabel(iso).toLowerCase()}"></span>
+    cells += `<button type="button" class="cal-cell${showP ? " priced" : ""}${state.nightPicked && iso === state.date ? " is-picked" : ""}${showP && deal ? " is-deal" : ""}${inRange ? " in-range" : ""}${today ? " is-today" : ""}" data-iso="${iso}">
+      ${showP ? `<span class="cal-dot lvl-${demandLabel(iso).toLowerCase()}"></span>` : ""}
       <span class="cal-num">${d}</span>
-      <span class="cal-price">${compactMoney(total)}</span>
-      ${tag}</button>`;
+      ${showP ? `<span class="cal-price">${compactMoney(total)}</span>${tag}` : ""}</button>`;
   }
 
   $("vdCal").innerHTML = calShell(calY, calM, cells);
   $("vdCal").querySelector('[data-cal="prev"]').addEventListener("click", () => { calM--; if (calM < 0) { calM = 11; calY--; } renderVenueCalendar(); });
   $("vdCal").querySelector('[data-cal="next"]').addEventListener("click", () => { calM++; if (calM > 11) { calM = 0; calY++; } renderVenueCalendar(); });
   $("vdCal").querySelectorAll(".cal-cell[data-iso]").forEach((btn) =>
-    btn.addEventListener("click", () => { state.date = btn.dataset.iso; renderVenueCalendar(); })
+    btn.addEventListener("click", () => {
+      state.date = btn.dataset.iso;
+      state.nightPicked = true;
+      renderVenueCalendar();
+      updateBookCardCalc(); // the price header does a short "calculating" beat, then shows the real total
+    })
   );
-  $("vdDealsHint").textContent = ranged
-    ? `Your dates ${fmtShort(r.start)} to ${fmtShort(r.end)} are highlighted. Cheapest nights are ringed.`
-    : "Highlighted nights are cheapest. Midweek and booking early save the most.";
+  $("vdDealsHint").textContent = showP
+    ? (ranged
+        ? `Your dates ${fmtShort(r.start)} to ${fmtShort(r.end)} are highlighted. Cheapest nights are ringed.`
+        : "Highlighted nights are cheapest. Midweek and booking early save the most.")
+    : (ranged
+        ? `Your dates ${fmtShort(r.start)} to ${fmtShort(r.end)} are highlighted.`
+        : "Midweek and booking early cost less.");
+  const sp = $("vbShowPrices");
+  if (sp) sp.textContent = showP ? "Hide nightly prices" : "Show nightly prices";
   renderAddons(); // add-on table prices follow the picked night
   updateBookCard();
 }
 
-// the docked booking card: price for the picked night, book button state
+// the venue's cheapest upcoming night, for the "From $X / night" header before a night is picked
+function venueFromPrice(v) {
+  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
+  const base = p ? p.price : pkgTypeBase(v, state.filter);
+  const { start, end } = compareWindow();
+  return priceForNight(base, cheapestNight(start, end));
+}
+
+// the docked booking card: "From" until a night is picked, then the real price for that night
 function updateBookCard() {
   const cb = currentBooking();
   const v = venueById(state.currentVenueId);
-  $("vbNightVal").textContent = fmtDate(state.date);
+  $("vbNightVal").textContent = state.nightPicked ? fmtDate(state.date) : "Add night";
   $("vbGuestsVal").textContent = `${state.party} guest${state.party === 1 ? "" : "s"}`;
   $("vbGQty").textContent = state.party;
-  if (!cb) {
+  if (!state.nightPicked) {
+    $("vbPrice").innerHTML = `<b>From ${usd.format(venueFromPrice(v))}</b> <span>/ night</span>`;
+    $("vbDep").textContent = cb ? "Pick your night to see the exact price" : "Choose what to book, then pick your night";
+    $("bfRequest").disabled = true;
+  } else if (!cb) {
     const from = priceForNight(pkgTypeBase(v, state.filter), state.date);
     $("vbPrice").innerHTML = `<b>from ${usd.format(from)}</b> <span>for ${fmtDate(state.date)}</span>`;
     $("vbDep").textContent = "Choose what to book on the left";
@@ -919,6 +958,17 @@ function updateBookCard() {
     $("vbDep").textContent = `${usd.format(cb.deposit)} deposit today · refunded instantly if the club can't host`;
     $("bfRequest").disabled = false;
   }
+}
+
+// Airbnb-style "calculating" beat: shimmer for a moment, then resolve to the real number.
+// Fake in the demo; in production this is exactly where the server-side price call goes.
+let calcToken = 0;
+function updateBookCardCalc() {
+  const t = ++calcToken;
+  $("vbPrice").innerHTML = `<span class="vb-skel" aria-hidden="true"></span>`;
+  $("vbDep").textContent = "Calculating your night…";
+  $("bfRequest").disabled = true;
+  setTimeout(() => { if (t === calcToken) updateBookCard(); }, 450);
 }
 
 // the price + deposit for the current package (plus any added tables) on the current night
