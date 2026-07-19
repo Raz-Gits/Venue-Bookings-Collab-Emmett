@@ -98,36 +98,6 @@
         <button type="button" class="mode-opt active" data-mode="book" role="tab">Book a venue</button>
         <button type="button" class="mode-opt" data-mode="compare" role="tab">Compare quotes</button>
       </div>
-      <div class="detail-chips">
-        <label class="refine-pill">
-          <span>Start</span>
-          <select id="fTime">
-            <option>9:00 PM</option>
-            <option selected>10:00 PM</option>
-            <option>11:00 PM</option>
-            <option>12:00 AM</option>
-          </select>
-        </label>
-        <label class="refine-pill">
-          <span>Occasion</span>
-          <select id="fOccasion">
-            <option>Birthday</option>
-            <option>Bachelor / bachelorette</option>
-            <option selected>Night out</option>
-            <option>Corporate</option>
-            <option>Celebration</option>
-          </select>
-        </label>
-        <div class="refine-pill budget-pill">
-          <span>Budget</span>
-          <em class="cur">$</em>
-          <input type="number" id="fBudget" class="budget-input" placeholder="total" min="0" step="50" inputmode="numeric" aria-label="Total budget (optional)" />
-        </div>
-        <button type="button" class="btn-ai btn-ai-chip" id="btnAskAI">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.9L19 9.8l-4.1 2.6L16 18l-4-3-4 3 1.1-5.6L5 9.8l5.1-1.9z" fill="currentColor"/></svg>
-          Ask AI
-        </button>
-      </div>
     </div>
 
     <div class="prod-tabs hidden" id="prodTabs" role="tablist" aria-label="Booking type">
@@ -141,31 +111,12 @@
       </button>
     </div>
 
-    <div class="deal-strip hidden" id="dealStrip">
-      <div class="deal-strip-head"><b id="dealTitle">Deal nights this month</b><span id="dealStripHint"></span></div>
-      <div class="deal-days" id="dealDays"></div>
-    </div>
-
     <div id="bookRows">
       <section class="row">
         <div class="row-head">
-          <h2 class="row-title" id="rowBuyoutsTitle">Full-venue buyouts</h2>
-          <div class="row-nav">
-            <button type="button" data-row="rowBuyouts" data-scroll="-1" aria-label="Scroll back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-            <button type="button" data-row="rowBuyouts" data-scroll="1" aria-label="Scroll forward"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-          </div>
+          <h2 class="row-title" id="exploreTitle">Clubs and venues</h2>
         </div>
-        <div class="cards" id="rowBuyouts"></div>
-      </section>
-      <section class="row">
-        <div class="row-head">
-          <h2 class="row-title" id="rowTablesTitle">Tables</h2>
-          <div class="row-nav">
-            <button type="button" data-row="rowTables" data-scroll="-1" aria-label="Scroll back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-            <button type="button" data-row="rowTables" data-scroll="1" aria-label="Scroll forward"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-          </div>
-        </div>
-        <div class="cards" id="rowTables"></div>
+        <div class="explore-grid" id="exploreGrid"></div>
       </section>
     </div>
 
@@ -180,6 +131,11 @@
       <div class="sendbar-info">
         <b id="sendCount"></b>
         <span>Every selected venue gets your request to quote</span>
+      </div>
+      <div class="refine-pill budget-pill">
+        <span>Budget</span>
+        <em class="cur">$</em>
+        <input type="number" id="fBudget" class="budget-input" placeholder="total" min="0" step="50" inputmode="numeric" aria-label="Total budget (optional, promoters see it)" />
       </div>
       <button class="btn-primary" id="btnSend">Request quotes</button>
     </div>
@@ -296,6 +252,27 @@
     <p class="modal-kicker">Request to book</p>
     <h3 id="reqVenue"></h3>
     <div class="book-lines" id="reqSummary"></div>
+    <div class="req-row">
+      <label class="field">
+        <span>Start time</span>
+        <select id="fTime">
+          <option>9:00 PM</option>
+          <option selected>10:00 PM</option>
+          <option>11:00 PM</option>
+          <option>12:00 AM</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Occasion</span>
+        <select id="fOccasion">
+          <option>Birthday</option>
+          <option>Bachelor / bachelorette</option>
+          <option selected>Night out</option>
+          <option>Corporate</option>
+          <option>Celebration</option>
+        </select>
+      </label>
+    </div>
     <div class="sign-field">
       <div class="sign-head"><span>LED table sign</span><em id="signCost"></em></div>
       <input type="text" id="signText" maxlength="28" placeholder='e.g. "Happy 21st Maya"' autocomplete="off" />

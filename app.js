@@ -328,7 +328,7 @@ function bindBrowse() {
     })
   );
 
-  $("fDate").addEventListener("change", (e) => { state.date = e.target.value; renderDealStrip(); });
+  $("fDate").addEventListener("change", (e) => { state.date = e.target.value; });
   $("fTime").addEventListener("change", (e) => { state.time = e.target.value; });
   $("fOccasion").addEventListener("change", (e) => { state.occasion = e.target.value; });
 
@@ -358,28 +358,16 @@ function bindBrowse() {
   $("whoMinus").addEventListener("click", () => { state.party = Math.max(1, state.party - 1); $("fPartyNum").value = state.party; syncWho(); });
   $("whoPlus").addEventListener("click", () => { state.party = Math.min(2000, state.party + 1); $("fPartyNum").value = state.party; syncWho(); });
 
-  // search button: apply and jump to the rows
+  // search button: apply and jump to the venues
   $("btnGo").addEventListener("click", () => {
     renderGrid();
     const rows = $("bookRows");
     if (rows.scrollIntoView) rows.scrollIntoView({ behavior: "smooth", block: "start" });
   });
-
-  // carousel chevrons
-  document.querySelectorAll(".row-nav button").forEach((b) =>
-    b.addEventListener("click", () => {
-      const row = $(b.dataset.row);
-      row.scrollBy({ left: Number(b.dataset.scroll) * (row.clientWidth - 80), behavior: "smooth" });
-    })
-  );
 }
 
 function syncWho() {
   $("whoText").textContent = `${state.party} guest${state.party === 1 ? "" : "s"}`;
-}
-
-function syncTypeTabs() {
-  document.querySelectorAll(".prod-tab").forEach((x) => x.classList.toggle("active", x.dataset.type === state.type));
 }
 
 function matchedVenues() {
@@ -418,7 +406,6 @@ function bindWhen() {
     syncWhenLabel();
     renderRangeCal();
     if (state.mode === "book") renderRows(); // card prices follow your dates
-    renderDealStrip();
   });
   $("whenDone").addEventListener("click", () => pop.classList.add("hidden"));
   syncWhenLabel();
@@ -438,7 +425,6 @@ function rcPick(iso) {
   syncWhenLabel();
   renderRangeCal();
   if (state.mode === "book") renderRows(); // card prices follow your dates
-  renderDealStrip();
 }
 
 function syncWhenLabel() {
@@ -490,16 +476,6 @@ function renderRangeCal() {
   el.querySelectorAll(".rc-cell[data-iso]").forEach((b) => b.addEventListener("click", () => rcPick(b.dataset.iso)));
 }
 
-// the window the deal strip prices: your chosen dates, or the next 4 weeks
-function dealWindow() {
-  const today = isoOf(new Date());
-  const r = state.range;
-  if (r.start && r.end && r.end >= today) {
-    return { start: r.start >= today ? r.start : today, end: r.end, ranged: true };
-  }
-  return { start: today, end: isoAddDays(today, 27), ranged: false };
-}
-
 // swap the browse chrome to match the current mode:
 // book = Airbnb-look carousels · compare = multi-select grid + sendbar
 function applyModeUI() {
@@ -521,7 +497,6 @@ function renderGrid() {
 
   if (state.mode === "compare") renderCompareGrid();
   else renderRows();
-  renderDealStrip();
 }
 
 /* ---- book mode: Airbnb-look photo carousels ---- */
@@ -532,34 +507,31 @@ function nightWord() {
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short" });
 }
 
-function bookCard(v, type) {
-  const price = priceForNight(pkgTypeBase(v, type), state.date);
-  return `<article class="pcard" data-id="${v.id}" data-type="${type}">
+// one card per venue; both options (tables + full venue) priced for your night
+function bookCard(v) {
+  const tMin = priceForNight(pkgTypeBase(v, "table"), state.date);
+  const bMin = priceForNight(pkgTypeBase(v, "buyout"), state.date);
+  return `<article class="pcard" data-id="${v.id}">
     <div class="pcard-photo" style="${photoBg(v, 0)}">
       ${venuePhotos(v) ? "" : `<span class="pcard-glyph">${v.glyph}</span>`}
       ${v.fav ? `<span class="pcard-fav">Guest favorite</span>` : ""}
       <button type="button" class="pcard-heart" aria-label="Save ${v.name}"><svg viewBox="0 0 32 32"><path d="M16 28C7.9 22.7 3 17.9 3 12.4 3 8.3 6.3 5 10.4 5c2.4 0 4.6 1.1 6 2.9C17.7 6.1 19.9 5 22.3 5 26.4 5 29 8.3 29 12.4c0 5.5-4.9 10.3-13 15.6z"/></svg></button>
     </div>
     <div class="pcard-name">${v.name} · ${v.area}</div>
-    <div class="pcard-sub">from ${usd.format(price)} for ${nightWord()} night · ${starSvg()} ${v.rating.toFixed(2)}</div>
+    <div class="pcard-sub">Tables from ${usd.format(tMin)} · Full venue ${compactMoney(bMin)}</div>
+    <div class="pcard-sub">${starSvg()} ${v.rating.toFixed(2)} · ${nightWord()} night</div>
   </article>`;
 }
 
 function renderRows() {
-  $("rowBuyoutsTitle").textContent = `Full-venue buyouts in ${state.city}`;
-  $("rowTablesTitle").textContent = `Tables in ${state.city}`;
-  // venues with real photos lead, so the rows open photo-first
+  $("exploreTitle").textContent = `Clubs and venues in ${state.city}`;
+  // venues with real photos lead, so the page opens photo-first
   const vs = [...matchedVenues()].sort((a, b) => (venuePhotos(b) ? 1 : 0) - (venuePhotos(a) ? 1 : 0));
-  $("rowBuyouts").innerHTML = vs.map((v) => bookCard(v, "buyout")).join("");
-  $("rowTables").innerHTML = vs.map((v) => bookCard(v, "table")).join("");
-  $("bookRows").querySelectorAll(".pcard").forEach((c) =>
-    c.addEventListener("click", () => {
-      state.type = c.dataset.type; // the row you booked from decides tables vs buyout
-      syncTypeTabs();
-      openVenue(c.dataset.id);
-    })
+  $("exploreGrid").innerHTML = vs.map(bookCard).join("");
+  $("exploreGrid").querySelectorAll(".pcard").forEach((c) =>
+    c.addEventListener("click", () => openVenue(c.dataset.id)) // pick tables or the whole venue inside
   );
-  $("bookRows").querySelectorAll(".pcard-heart").forEach((h) =>
+  $("exploreGrid").querySelectorAll(".pcard-heart").forEach((h) =>
     h.addEventListener("click", (e) => { e.stopPropagation(); h.classList.toggle("on"); })
   );
 }
@@ -608,64 +580,6 @@ function renderCompareGrid() {
   });
 
   updateSendbar();
-}
-
-// deal strip: cheapest nights in your dates, or the next 4 weeks (ported from Emmett's PR #2)
-function renderDealStrip() {
-  const strip = $("dealStrip");
-  if (state.mode !== "book") { strip.classList.add("hidden"); return; }
-  const { start, end, ranged } = dealWindow();
-  const nights = nightsInRange(start, end, 42);
-  if (nights.length < 2) { strip.classList.add("hidden"); return; }
-  strip.classList.remove("hidden");
-  $("dealTitle").textContent = ranged ? "Deal nights in your dates" : "Deal nights this month";
-  const minF = Math.min(...nights.map(demandFactor));
-  const ref = state.type === "buyout" ? 5000 : 700; // representative "from" figure
-  $("dealDays").innerHTML = nights.map((iso) => dealDayChip(iso, minF, ref)).join("");
-  $("dealDays").querySelectorAll(".deal-day").forEach((btn) =>
-    btn.addEventListener("click", () => pickNight(btn.dataset.iso))
-  );
-  const best = cheapestNight(start, end);
-  const save = Math.round((demandFactor(state.date) / demandFactor(best) - 1) * 100);
-  $("dealStripHint").textContent = state.date === best
-    ? `${fmtDate(best)} is the cheapest night ${ranged ? "in your dates" : "this month"}`
-    : `${fmtDate(best)} is cheapest${state.date ? ` · you picked ${fmtDate(state.date)} (+${save}%)` : ""}`;
-}
-
-function dealDayChip(iso, minF, basis) {
-  const f = demandFactor(iso);
-  const up = Math.round((f / minF - 1) * 100);
-  const deal = up <= 0;
-  const delta = deal ? "Best deal" : `+${up}%`;
-  const price = usd.format(priceForNight(basis, iso));
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
-  const dow = dt.toLocaleDateString("en-US", { weekday: "short" });
-  const day = dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const lbl = demandLabel(iso);
-  const picked = iso === state.date;
-  const eb = Math.round(earlyBirdDiscount(iso) * 100);
-  const ebTag = eb >= 5 ? `<span class="dd-early">Early bird -${eb}%</span>` : "";
-  return `<button type="button" class="deal-day${deal ? " is-deal" : ""}${picked ? " is-picked" : ""}" data-iso="${iso}" aria-pressed="${picked}">
-      <span class="dd-dow">${dow}</span>
-      <span class="dd-date">${day}</span>
-      <span class="dd-demand lvl-${lbl.toLowerCase()}">${lbl}</span>
-      <span class="dd-price">~${price}</span>
-      <span class="dd-delta${deal ? " good" : ""}">${delta}</span>
-      ${ebTag}</button>`;
-}
-
-function pickNight(iso) {
-  state.date = iso;
-  $("fDate").value = iso;
-  if (!(state.range.start && state.range.end && iso >= state.range.start && iso <= state.range.end)) {
-    state.range = { start: iso, end: iso }; // picking a single night narrows the When to it
-  }
-  syncWhenLabel();
-  renderRangeCal();
-  if (state.mode === "book") renderRows(); // card prices follow the picked night
-  renderDealStrip();
-  toast(`${fmtDate(iso)} picked. Open a venue to book it.`);
 }
 
 function toggleVenue(id, card) {
@@ -1780,7 +1694,8 @@ function chooseCity(c) {
 const chat = { collected: {}, launched: false, busy: false };
 
 function bindChat() {
-  $("btnAskAI").addEventListener("click", openChat);
+  const aiBtn = $("btnAskAI");
+  if (aiBtn) aiBtn.addEventListener("click", openChat); // entry point removed in the redesign; chat kept dormant
   $("chatClose").addEventListener("click", closeChat);
   $("chatBackdrop").addEventListener("click", (e) => { if (e.target === $("chatBackdrop")) closeChat(); });
   $("chatForm").addEventListener("submit", (e) => { e.preventDefault(); chatUserSubmit($("chatText").value); });

@@ -686,9 +686,6 @@ body {
   animation: rise 0.5s 0.08s both;
 }
 .browse-tools .mode-toggle { margin: 0; }
-.detail-chips { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-left: auto; }
-.btn-ai-chip { margin-left: 0; padding: 9px 14px; font-size: 0.82rem; }
-.btn-ai-chip svg { width: 14px; height: 14px; }
 
 /* ---------- When range picker (ported from the React Aria RangeCalendar component) ---------- */
 .when-pop {
@@ -777,30 +774,6 @@ body {
 
 /* temp real-photo credit line */
 .vd-photo-credit { margin-top: 8px; font-size: 0.72rem; color: var(--muted-soft); }
-
-/* ---------- deal strip ---------- */
-.deal-strip { margin: 8px 0 26px; animation: rise 0.5s 0.2s both; }
-.deal-strip.hidden { display: none; }
-.deal-strip-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-.deal-strip-head b { font-size: 0.95rem; color: var(--ink); }
-.deal-strip-head span { font-size: 0.82rem; color: var(--muted); }
-.deal-days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
-.deal-days::-webkit-scrollbar { height: 6px; }
-.deal-days::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 3px; }
-.deal-day { flex: 0 0 auto; scroll-snap-align: start; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 84px; font-family: var(--font); background: var(--canvas); border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 10px 12px; cursor: pointer; transition: border-color 0.15s, transform 0.15s; }
-.deal-day:hover { border-color: var(--border-strong); transform: translateY(-1px); }
-.deal-day.is-deal { border-color: var(--rausch); }
-.deal-day.is-picked { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
-.dd-dow { font-size: 0.72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.dd-date { font-size: 0.95rem; font-weight: 700; color: var(--ink); }
-.dd-demand { font-size: 0.68rem; font-weight: 700; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.03em; }
-.dd-demand.lvl-quiet { color: var(--rausch); }
-.dd-demand.lvl-busy { color: var(--muted); }
-.dd-demand.lvl-peak { color: var(--ink); }
-.dd-price { font-size: 0.8rem; color: var(--body); }
-.dd-delta { font-size: 0.72rem; font-weight: 600; color: var(--muted-soft); }
-.dd-delta.good { color: var(--rausch); }
-.dd-early { margin-top: 4px; font-size: 0.6rem; font-weight: 700; letter-spacing: 0.02em; color: var(--rausch); background: var(--rausch-disabled); border-radius: var(--r-full); padding: 2px 7px; white-space: nowrap; }
 
 /* ---------- pending approval ---------- */
 .pending { max-width: 520px; margin: 5vh auto 0; padding: 40px 32px; text-align: center; box-shadow: var(--shadow); }
@@ -1535,3 +1508,24 @@ body {
 @media (max-width: 560px) {
   .when-pop, .who-pop { position: fixed; left: 50%; top: 50%; right: auto; transform: translate(-50%, -50%); z-index: 96; }
 }
+
+/* ---------- unified explore grid (one card per venue, both options inside) ---------- */
+.explore-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); gap: 26px 16px; }
+.explore-grid .pcard { flex: none; }
+
+/* start time + occasion live in the request modal now */
+.req-row { display: flex; gap: 12px; }
+.req-row .field { flex: 1; }
+.field select {
+  font-family: var(--font); font-size: 0.95rem; color: var(--ink);
+  background: var(--canvas);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  padding: 12px;
+  outline: none; width: 100%;
+  -webkit-appearance: none; appearance: none;
+}
+.field select:focus { border-color: var(--ink); }
+
+/* budget rides in the compare sendbar (promoters see it in the request) */
+.sendbar .budget-pill { flex-shrink: 0; background: var(--canvas); }
