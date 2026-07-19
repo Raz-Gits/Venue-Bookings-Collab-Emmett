@@ -550,13 +550,16 @@ function renderCompare() {
 
 function bindVenue() {
   $("venueBack").addEventListener("click", () => showScreen("browse"));
-  // clicking anywhere outside the booking card closes its panels
+  // clicking anywhere outside the booking card folds its panels back up
   document.addEventListener("click", (e) => {
     const cal = $("vbCalPanel"), gp = $("vbGuestPanel");
     if (!cal && !gp) return;
     if (!e.target.closest(".vd-book")) {
-      if (cal) cal.classList.add("hidden");
-      if (gp) gp.classList.add("hidden");
+      if (cal) cal.classList.remove("open");
+      if (gp) gp.classList.remove("open");
+      const n = $("vbNight"), g = $("vbGuests");
+      if (n) n.classList.remove("expanded");
+      if (g) g.classList.remove("expanded");
     }
   });
 }
@@ -698,36 +701,40 @@ function renderVenue() {
               </button>
             </div>
 
+            <div class="vb-panel vb-calpanel" id="vbCalPanel" role="region" aria-label="Pick your night">
+              <div class="vb-panel-inner"><div class="vb-panel-pad">
+                <div class="vb-calhead">
+                  <b>Pick your night</b>
+                  <span class="vb-hint" id="vdDealsHint"></span>
+                </div>
+                <div class="vd-cal" id="vdCal"></div>
+                <div class="vb-calfoot">
+                  <button type="button" class="btn-textlink" id="vbCheapest">Jump to cheapest night</button>
+                  <button type="button" class="vb-close" id="vbCalClose">Close</button>
+                </div>
+              </div></div>
+            </div>
+
+            <div class="vb-panel vb-guestpanel" id="vbGuestPanel" role="region" aria-label="How many guests">
+              <div class="vb-panel-inner"><div class="vb-panel-pad">
+                <div class="who-row">
+                  <div><b>Guests</b><small>Your whole group, big is fine</small></div>
+                  <div class="stepper">
+                    <button type="button" class="step-btn" id="vbGMinus" aria-label="Fewer guests">-</button>
+                    <b class="step-qty" id="vbGQty"></b>
+                    <button type="button" class="step-btn" id="vbGPlus" aria-label="More guests">+</button>
+                  </div>
+                </div>
+                <div class="vb-calfoot">
+                  <span></span>
+                  <button type="button" class="vb-close" id="vbGuestClose">Done</button>
+                </div>
+              </div></div>
+            </div>
+
             <div class="vb-note" id="vbDep"></div>
             <button type="button" class="btn-primary btn-big" id="bfRequest" disabled>Book this night</button>
             <p class="vb-fine">Deposit charged now and credited to your bill. Refunded in full, instantly, if the club can't host you.</p>
-
-            <div class="vb-panel vb-calpanel hidden" id="vbCalPanel" role="dialog" aria-label="Pick your night">
-              <div class="vb-calhead">
-                <b>Pick your night</b>
-                <span class="vb-hint" id="vdDealsHint"></span>
-              </div>
-              <div class="vd-cal" id="vdCal"></div>
-              <div class="vb-calfoot">
-                <button type="button" class="btn-textlink" id="vbCheapest">Jump to cheapest night</button>
-                <button type="button" class="vb-close" id="vbCalClose">Close</button>
-              </div>
-            </div>
-
-            <div class="vb-panel vb-guestpanel hidden" id="vbGuestPanel" role="dialog" aria-label="How many guests">
-              <div class="who-row">
-                <div><b>Guests</b><small>Your whole group, big is fine</small></div>
-                <div class="stepper">
-                  <button type="button" class="step-btn" id="vbGMinus" aria-label="Fewer guests">-</button>
-                  <b class="step-qty" id="vbGQty"></b>
-                  <button type="button" class="step-btn" id="vbGPlus" aria-label="More guests">+</button>
-                </div>
-              </div>
-              <div class="vb-calfoot">
-                <span></span>
-                <button type="button" class="vb-close" id="vbGuestClose">Close</button>
-              </div>
-            </div>
           </div>
         </aside>
       </div>
@@ -735,18 +742,28 @@ function renderVenue() {
 
   $("bfRequest").addEventListener("click", openReqModal);
 
-  // Airbnb-style: fields stay compact, panels open on demand
+  // Airbnb-style: fields stay compact, sections unfold inside the card
   const calPanel = $("vbCalPanel"), guestPanel = $("vbGuestPanel");
   $("vbNight").addEventListener("click", () => {
-    guestPanel.classList.add("hidden");
-    calPanel.classList.toggle("hidden");
+    guestPanel.classList.remove("open");
+    calPanel.classList.toggle("open");
+    $("vbGuests").classList.remove("expanded");
+    $("vbNight").classList.toggle("expanded", calPanel.classList.contains("open"));
   });
   $("vbGuests").addEventListener("click", () => {
-    calPanel.classList.add("hidden");
-    guestPanel.classList.toggle("hidden");
+    calPanel.classList.remove("open");
+    guestPanel.classList.toggle("open");
+    $("vbNight").classList.remove("expanded");
+    $("vbGuests").classList.toggle("expanded", guestPanel.classList.contains("open"));
   });
-  $("vbCalClose").addEventListener("click", () => calPanel.classList.add("hidden"));
-  $("vbGuestClose").addEventListener("click", () => guestPanel.classList.add("hidden"));
+  const closePanels = () => {
+    calPanel.classList.remove("open");
+    guestPanel.classList.remove("open");
+    $("vbNight").classList.remove("expanded");
+    $("vbGuests").classList.remove("expanded");
+  };
+  $("vbCalClose").addEventListener("click", closePanels);
+  $("vbGuestClose").addEventListener("click", closePanels);
   $("vbCheapest").addEventListener("click", () => {
     const { start, end } = compareWindow();
     state.date = cheapestNight(start, end);

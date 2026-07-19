@@ -1413,17 +1413,25 @@ body {
   background: var(--surface-soft); border-radius: var(--r-sm);
   padding: 10px 12px; margin-bottom: 12px;
 }
+/* panels unfold inside the card, easing the note + book button downward */
 .vb-panel {
-  position: absolute; top: calc(100% + 10px); right: 0; z-index: 75;
-  background: var(--canvas);
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  margin: 0;
+  transition: grid-template-rows 0.42s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.vb-panel.open { grid-template-rows: 1fr; opacity: 1; margin: 0 0 12px; }
+.vb-panel-inner { overflow: hidden; min-height: 0; }
+.vb-panel-pad {
   border: 1px solid var(--hairline);
   border-radius: var(--r-md);
-  box-shadow: var(--shadow-lg);
-  padding: 18px;
-  animation: popFade 0.18s both;
+  padding: 14px;
+  background: var(--surface-soft);
 }
-.vb-calpanel { width: min(480px, calc(100vw - 32px)); top: auto; bottom: calc(100% - 220px); }
-.vb-guestpanel { width: min(320px, calc(100vw - 32px)); }
+.vb-panel .vd-cal { background: var(--canvas); border-radius: var(--r-sm); padding: 10px; }
+.vb-field .vb-chev { transition: transform 0.3s ease; }
+.vb-field.expanded .vb-chev { transform: translateY(-50%) rotate(180deg); }
 .vb-calhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 .vb-calhead b { font-weight: 600; font-size: 1rem; }
 .vb-calhead .vb-hint { margin: 0; }
@@ -1434,6 +1442,4 @@ body {
   padding: 10px 20px; cursor: pointer;
 }
 .vb-close:hover { background: #000; }
-@media (max-width: 900px) {
-  .vb-panel, .vb-calpanel { position: fixed; left: 50%; top: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%); z-index: 96; }
-}
+
