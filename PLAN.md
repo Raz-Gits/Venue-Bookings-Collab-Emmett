@@ -148,6 +148,29 @@ Goal: strangers can use it without either of us in the loop.
 3. **Stripe account + Connect onboarding** needs the business entity.
 4. **Licensed venue photography.** The demo currently hotlinks TEMP photos from three real Orlando venues (The Beacham, Mango's Tropical Cafe, ICEBAR; see `TEMP_REAL_PHOTOS` in `app.js` and the copy in `preview-airbnb.html`) purely to judge the look. **Hard launch blocker:** replace with our own licensed photos, with each venue's permission, before anything public.
 
+## Next actions + expected costs (agreed 2026-07-19)
+
+Priority order:
+
+1. **Pitch the demo to 3 to 5 Orlando venues** (Raz + Emmett, no code). Goal: one venue says "we'd approve requests through this." This is the bottleneck for everything.
+2. **Form the business entity + bank account** (FL LLC, ~$125 filing). Blocks Stripe, Twilio branding, venue contracts. Cheap and slow, start now.
+3. **Start Twilio A2P 10DLC registration** (US texting approval, weeks of carrier review). Gates all Phase 2 SMS.
+4. Decide: venue verification + OTP-only identity (blocks Phase 2); cancellation policy + charge-on-approval (blocks Phase 3).
+5. **Build Phase 2** "one real booking": Supabase, server-side pricing, OTP, magic link, Twilio, realtime, expiry, inventory.
+6. **Build Phase 3** money: Stripe charge-on-approval, Connect payouts w/ 10% commission, real split deposits, ToS.
+7. Along the way: licensed photos when venues sign, real domain, mobile polish, logo.
+
+Costs (rates as of Jul 2026, re-check at signup):
+
+| Stage | Monthly | One-time |
+|---|---|---|
+| Demo (today) | $0 (Netlify + GitHub free) | $0 |
+| Phase 2 pilot | ~$10 to 40 (Twilio number + SMS ~$8/1k texts; Supabase free, Pro $25 later) | ~$50 to 100 (10DLC registration, domain ~$15/yr) |
+| Phase 3 money | ~$40 to 80 (Stripe has no monthly fee) | ~$200 to 400 (FL LLC; optional lawyer pass $500 to 1,500) |
+| Phase 4 launch | ~$75 to 150 all-in until real volume | photos (often free from signed venues' press kits) |
+
+Per-transaction: Stripe ~2.9% + $0.30 per deposit charge (+~0.25% Connect payout). A $240 deposit costs ~$7.85; the 10% commission ($24) covers it, but thin deposits on cheap tables get tight. Claude API (sign ideas / concierge) is under $5/mo at pilot scale. Bottom line: pilot runs under $50/mo; the real costs are venue-sales time and ~$300 of paperwork.
+
 ## Open questions (not yet decided)
 
 - No-show handling and dispute flow

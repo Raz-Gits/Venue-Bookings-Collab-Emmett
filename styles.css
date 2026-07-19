@@ -644,7 +644,8 @@ body {
 @media (max-width: 560px) { .cal-cell.priced { min-height: 54px; } .cal-price { font-size: 0.6rem; } }
 
 /* ---------- Airbnb-look search pill (adopted from the preview spike) ---------- */
-.search-zone { margin: 8px 0 6px; animation: rise 0.5s both; }
+/* the whole zone gets its own top stacking layer so When/Who popovers always paint above the venue cards */
+.search-zone { position: relative; z-index: 70; margin: 8px 0 6px; animation: rise 0.5s both; }
 .search-pill {
   position: relative;
   z-index: 70; /* its When/Who popovers must paint above everything below the pill */
@@ -690,7 +691,7 @@ body {
 
 /* ---------- When range picker (ported from the React Aria RangeCalendar component) ---------- */
 .when-pop {
-  position: absolute; top: calc(100% + 12px); left: 50%; transform: translateX(-50%); z-index: 60;
+  position: absolute; top: calc(100% + 12px); left: 50%; transform: translateX(-50%); z-index: 96;
   background: var(--canvas);
   border: 1px solid var(--hairline);
   border-radius: var(--r-md);
