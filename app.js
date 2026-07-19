@@ -550,6 +550,15 @@ function renderCompare() {
 
 function bindVenue() {
   $("venueBack").addEventListener("click", () => showScreen("browse"));
+  // clicking anywhere outside the booking card closes its panels
+  document.addEventListener("click", (e) => {
+    const cal = $("vbCalPanel"), gp = $("vbGuestPanel");
+    if (!cal && !gp) return;
+    if (!e.target.closest(".vd-book")) {
+      if (cal) cal.classList.add("hidden");
+      if (gp) gp.classList.add("hidden");
+    }
+  });
 }
 
 function openVenue(id) {
@@ -678,19 +687,82 @@ function renderVenue() {
         <aside class="vd-book">
           <div class="vd-book-card">
             <div class="vb-price" id="vbPrice"></div>
-            <div class="vb-meta">${state.party} people · ${state.occasion} <button type="button" class="venue-night-edit" id="venueEdit">Edit</button></div>
-            <div class="vd-cal" id="vdCal"></div>
-            <span class="vb-hint" id="vdDealsHint"></span>
+
+            <div class="vb-fields">
+              <button type="button" class="vb-field" id="vbNight" aria-haspopup="dialog" aria-controls="vbCalPanel">
+                <small>Night</small><b id="vbNightVal"></b>
+              </button>
+              <button type="button" class="vb-field" id="vbGuests" aria-haspopup="dialog" aria-controls="vbGuestPanel">
+                <small>Guests</small><b id="vbGuestsVal"></b>
+                <svg class="vb-chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 6l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+
+            <div class="vb-note" id="vbDep"></div>
             <button type="button" class="btn-primary btn-big" id="bfRequest" disabled>Book this night</button>
-            <div class="vb-dep" id="vbDep"></div>
             <p class="vb-fine">Deposit charged now and credited to your bill. Refunded in full, instantly, if the club can't host you.</p>
+
+            <div class="vb-panel vb-calpanel hidden" id="vbCalPanel" role="dialog" aria-label="Pick your night">
+              <div class="vb-calhead">
+                <b>Pick your night</b>
+                <span class="vb-hint" id="vdDealsHint"></span>
+              </div>
+              <div class="vd-cal" id="vdCal"></div>
+              <div class="vb-calfoot">
+                <button type="button" class="btn-textlink" id="vbCheapest">Jump to cheapest night</button>
+                <button type="button" class="vb-close" id="vbCalClose">Close</button>
+              </div>
+            </div>
+
+            <div class="vb-panel vb-guestpanel hidden" id="vbGuestPanel" role="dialog" aria-label="How many guests">
+              <div class="who-row">
+                <div><b>Guests</b><small>Your whole group, big is fine</small></div>
+                <div class="stepper">
+                  <button type="button" class="step-btn" id="vbGMinus" aria-label="Fewer guests">-</button>
+                  <b class="step-qty" id="vbGQty"></b>
+                  <button type="button" class="step-btn" id="vbGPlus" aria-label="More guests">+</button>
+                </div>
+              </div>
+              <div class="vb-calfoot">
+                <span></span>
+                <button type="button" class="vb-close" id="vbGuestClose">Close</button>
+              </div>
+            </div>
           </div>
         </aside>
       </div>
     </div>`;
 
-  $("venueEdit").addEventListener("click", () => showScreen("browse"));
   $("bfRequest").addEventListener("click", openReqModal);
+
+  // Airbnb-style: fields stay compact, panels open on demand
+  const calPanel = $("vbCalPanel"), guestPanel = $("vbGuestPanel");
+  $("vbNight").addEventListener("click", () => {
+    guestPanel.classList.add("hidden");
+    calPanel.classList.toggle("hidden");
+  });
+  $("vbGuests").addEventListener("click", () => {
+    calPanel.classList.add("hidden");
+    guestPanel.classList.toggle("hidden");
+  });
+  $("vbCalClose").addEventListener("click", () => calPanel.classList.add("hidden"));
+  $("vbGuestClose").addEventListener("click", () => guestPanel.classList.add("hidden"));
+  $("vbCheapest").addEventListener("click", () => {
+    const { start, end } = compareWindow();
+    state.date = cheapestNight(start, end);
+    $("fDate").value = state.date;
+    const [y, m] = state.date.split("-").map(Number);
+    calY = y; calM = m - 1;
+    renderVenueCalendar();
+  });
+  const bump = (d) => {
+    state.party = Math.min(2000, Math.max(1, state.party + d));
+    $("fPartyNum").value = state.party;
+    syncWho();
+    updateBookCard();
+  };
+  $("vbGMinus").addEventListener("click", () => bump(-1));
+  $("vbGPlus").addEventListener("click", () => bump(1));
   $("vdShare").addEventListener("click", () => {
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(`https://bkout.app/v/${v.id}`);
     toast("Link copied. Send it to the group chat.");
@@ -816,6 +888,9 @@ function renderVenueCalendar() {
 function updateBookCard() {
   const cb = currentBooking();
   const v = venueById(state.currentVenueId);
+  $("vbNightVal").textContent = fmtDate(state.date);
+  $("vbGuestsVal").textContent = `${state.party} guest${state.party === 1 ? "" : "s"}`;
+  $("vbGQty").textContent = state.party;
   if (!cb) {
     const from = priceForNight(pkgTypeBase(v, state.filter), state.date);
     $("vbPrice").innerHTML = `<b>from ${usd.format(from)}</b> <span>for ${fmtDate(state.date)}</span>`;
@@ -824,7 +899,7 @@ function updateBookCard() {
   } else {
     const n = cb.addons.reduce((s, a) => s + a.qty, 0);
     $("vbPrice").innerHTML = `<b>${usd.format(cb.total)}</b> <span>${cb.p.name}${n ? ` + ${n} table${n > 1 ? "s" : ""}` : ""} · ${fmtDate(state.date)}</span>`;
-    $("vbDep").textContent = `${usd.format(cb.deposit)} deposit charged now, rest at the venue`;
+    $("vbDep").textContent = `${usd.format(cb.deposit)} deposit today · refunded instantly if the club can't host`;
     $("bfRequest").disabled = false;
   }
 }

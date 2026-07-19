@@ -1390,3 +1390,50 @@ body {
   .vm-right { display: none; }
   .vd-mosaic { grid-template-columns: 1fr; }
 }
+
+/* ---------- booking card: compact fields + on-demand panels ---------- */
+.vd-book-card { position: relative; }
+.vb-fields { border: 1px solid var(--border-strong); border-radius: var(--r-sm); overflow: hidden; margin: 12px 0; }
+.vb-field {
+  position: relative;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  width: 100%; text-align: left;
+  font-family: var(--font);
+  background: var(--canvas); border: 0; cursor: pointer;
+  padding: 10px 14px;
+  transition: background 0.15s;
+}
+.vb-field + .vb-field { border-top: 1px solid var(--border-strong); }
+.vb-field:hover { background: var(--surface-soft); }
+.vb-field small { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink); }
+.vb-field b { font-size: 0.92rem; font-weight: 500; color: var(--ink); }
+.vb-chev { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--ink); }
+.vb-note {
+  text-align: center; font-size: 0.8rem; font-weight: 500; color: var(--body);
+  background: var(--surface-soft); border-radius: var(--r-sm);
+  padding: 10px 12px; margin-bottom: 12px;
+}
+.vb-panel {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 75;
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  padding: 18px;
+  animation: popFade 0.18s both;
+}
+.vb-calpanel { width: min(480px, calc(100vw - 32px)); top: auto; bottom: calc(100% - 220px); }
+.vb-guestpanel { width: min(320px, calc(100vw - 32px)); }
+.vb-calhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.vb-calhead b { font-weight: 600; font-size: 1rem; }
+.vb-calhead .vb-hint { margin: 0; }
+.vb-calfoot { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hairline-soft); }
+.vb-close {
+  font-family: var(--font); font-weight: 600; font-size: 0.88rem;
+  color: #fff; background: var(--ink); border: 0; border-radius: var(--r-sm);
+  padding: 10px 20px; cursor: pointer;
+}
+.vb-close:hover { background: #000; }
+@media (max-width: 900px) {
+  .vb-panel, .vb-calpanel { position: fixed; left: 50%; top: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%); z-index: 96; }
+}
