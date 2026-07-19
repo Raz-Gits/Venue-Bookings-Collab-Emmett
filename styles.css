@@ -820,8 +820,8 @@ body {
 .field input[readonly] { color: var(--muted); background: var(--surface-soft); }
 .modal-fine, .confirm-fine { color: var(--muted); font-size: 0.78rem; margin-top: 14px; line-height: 1.6; }
 .modal-fine em, .confirm-fine em { color: var(--body); font-style: normal; }
-#btnPay b { margin-left: 6px; }
-#btnPay.paying { opacity: 0.6; pointer-events: none; }
+#reqSubmit b { margin-left: 6px; }
+#reqSubmit.paying { opacity: 0.6; pointer-events: none; }
 
 /* ---------- confirmation ---------- */
 .confirm {
@@ -1297,3 +1297,11 @@ body {
   .cmp-night { display: none; }
   .cmp-go { display: none; }
 }
+
+/* ---------- post-booking extras ---------- */
+.pending-extras { max-width: 520px; margin: 16px auto 0; display: flex; flex-direction: column; gap: 16px; padding-bottom: 80px; }
+.extras { padding: 22px; box-shadow: var(--shadow); }
+.extras h3 { font-weight: 600; font-size: 1.15rem; letter-spacing: -0.02em; }
+.extras-sub { color: var(--muted); font-size: 0.85rem; margin: 4px 0 16px; }
+.extras .sign-field { margin-bottom: 0; }
+.pending-extras .split { margin-bottom: 0; background: var(--canvas); }

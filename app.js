@@ -114,9 +114,19 @@ const SIGN_TEMPLATES = {
   "Night out": ["The {n} Crew", "VIP: {n} + Friends", "Good Nights Only"],
 };
 
+// no-name variants so we never mangle a template around a missing name
+const SIGN_TEMPLATES_NONAME = {
+  "Birthday": ["Birthday Mode: ON", "Cheers to Another Year", "Make a Wish"],
+  "Bachelor / bachelorette": ["The Last Dance", "One Last Night Out", "Team Forever"],
+  "Corporate": ["Cheers to the Team", "Big Wins Only", "Out of Office"],
+  "Celebration": ["Pop the Champagne", "We Did the Thing", "Cheers to Us"],
+  "Night out": ["Good Nights Only", "The Night Crew", "VIP: Us"],
+};
+
 function suggestSigns(occasion, name) {
+  const n = (name || "").trim();
+  if (!n) return SIGN_TEMPLATES_NONAME[occasion] || SIGN_TEMPLATES_NONAME["Night out"];
   const base = SIGN_TEMPLATES[occasion] || SIGN_TEMPLATES["Night out"];
-  const n = (name || "").trim() || "the Crew";
   return base.map((t) => t.replaceAll("{n}", n));
 }
 
@@ -248,6 +258,7 @@ const roundTo = (n, step) => Math.round(n / step) * step;
   bindWhen();
   bindVenue();
   bindReqModal();
+  bindPendingExtras();
   bindPromoterApp();
   bindChat();
 
@@ -796,20 +807,52 @@ function bindReqModal() {
   $("reqClose").addEventListener("click", () => $("reqBackdrop").classList.add("hidden"));
   $("reqBackdrop").addEventListener("click", (e) => { if (e.target === $("reqBackdrop")) $("reqBackdrop").classList.add("hidden"); });
   $("reqSubmit").addEventListener("click", submitBooking);
+}
+
+/* ---- post-booking extras: personalize AFTER the card is charged ---- */
+
+function bindPendingExtras() {
+  // time and occasion edits flow straight into the live booking
+  $("fTime").addEventListener("change", () => { if (state.booking) state.booking.time = state.time; });
+  $("fOccasion").addEventListener("change", () => { if (state.booking) state.booking.occasion = state.occasion; });
+
+  $("signText").addEventListener("input", (e) => setBookingSign(e.target.value));
 
   // LED sign: canned "AI" suggestions in the demo (production: a small Claude call)
   $("signSuggest").addEventListener("click", () => {
-    const lines = suggestSigns(state.occasion, $("signName").value);
+    const occ = state.booking ? state.booking.occasion : state.occasion;
+    const lines = suggestSigns(occ, $("signName").value);
     const box = $("signChips");
     box.innerHTML = lines.map((l) => `<button type="button" class="chip" data-sign="${l}">${l}</button>`).join("");
     box.classList.remove("hidden");
     box.querySelectorAll(".chip").forEach((c) =>
       c.addEventListener("click", () => {
         $("signText").value = c.dataset.sign;
+        setBookingSign(c.dataset.sign);
         box.querySelectorAll(".chip").forEach((x) => x.classList.toggle("active", x === c));
       })
     );
   });
+}
+
+function setBookingSign(text) {
+  const b = state.booking;
+  if (!b) return;
+  const t = (text || "").trim();
+  b.sign = t ? { text: t, price: b.pkg.sign === "included" ? 0 : SIGN_PRICE } : null;
+}
+
+// reset the extras form for a fresh booking
+function prepPendingExtras() {
+  const b = state.booking;
+  if (!b) return;
+  $("signCost").textContent = b.pkg.sign === "included" ? "Included with your booking" : `+${usd.format(SIGN_PRICE)}, billed at the venue`;
+  $("signText").value = "";
+  $("signName").value = "";
+  $("signChips").innerHTML = "";
+  $("signChips").classList.add("hidden");
+  $("fTime").value = b.time;
+  $("fOccasion").value = b.occasion;
 }
 
 function openReqModal() {
@@ -824,13 +867,8 @@ function openReqModal() {
     ${addons.length ? `<div class="bline"><span>Night total</span><b>${usd.format(total)}</b></div>` : ""}
     <div class="bline"><span>${p.type === "buyout" ? "Full venue" : "Table"} · ${state.party} people</span><b>${fmtDate(state.date)} · ${state.time}</b></div>
     <div class="bline"><span>Includes</span><b>${p.includes.join("<br>")}</b></div>
-    <div class="bline total"><span>Deposit to hold</span><b>${usd.format(deposit)}</b></div>`;
+    <div class="bline total"><span>Deposit charged now</span><b>${usd.format(deposit)}</b></div>`;
   $("reqDep").textContent = usd.format(deposit);
-  $("signCost").textContent = p.sign === "included" ? "Included with this package" : `+${usd.format(SIGN_PRICE)}, billed at the venue`;
-  $("signText").value = "";
-  $("signName").value = "";
-  $("signChips").innerHTML = "";
-  $("signChips").classList.add("hidden");
   $("reqBackdrop").classList.remove("hidden");
 }
 
@@ -838,37 +876,45 @@ function submitBooking() {
   const cb = currentBooking();
   if (!cb) return;
   const { v, p, addons, total, deposit } = cb;
-  const signText = $("signText").value.trim();
-  state.booking = {
-    venueId: v.id,
-    venueName: v.name,
-    pkg: p,
-    addons,
-    sign: signText ? { text: signText, price: p.sign === "included" ? 0 : SIGN_PRICE } : null,
-    date: state.date,
-    time: state.time,
-    party: state.party,
-    occasion: state.occasion,
-    price: total,
-    deposit: deposit,
-    // split the deposit: organizer-guarantee model, never all-or-nothing.
-    // Your card covers the full deposit; friends chip in by link; anything
-    // unpaid at the cutoff stays on your card. Real version: Stripe, Phase 3.
-    split: {
-      code: Math.random().toString(36).slice(2, 6).toUpperCase(),
-      target: deposit,
-      collected: 0,
-      parts: [],
-    },
-    status: "pending",
-    code: "BK-ORL-" + Math.random().toString(36).slice(2, 6).toUpperCase(),
-    at: Date.now(),
-  };
-  $("reqBackdrop").classList.add("hidden");
-  renderPending();
-  showScreen("pending");
-  startPendingPoll();
-  toast(`Request sent to ${v.name}`);
+  const btn = $("reqSubmit");
+  btn.classList.add("paying");
+  btn.firstChild.textContent = "Charging your card… ";
+
+  setTimeout(() => {
+    btn.classList.remove("paying");
+    btn.firstChild.textContent = "Book this night ";
+    state.booking = {
+      venueId: v.id,
+      venueName: v.name,
+      pkg: p,
+      addons,
+      sign: null, // personalized after booking, on the booked screen
+      date: state.date,
+      time: state.time,
+      party: state.party,
+      occasion: state.occasion,
+      price: total,
+      deposit: deposit,
+      // split the deposit: organizer-guarantee model, never all-or-nothing.
+      // Your card covers the full deposit; friends chip in by link; anything
+      // unpaid at the cutoff stays on your card. Real version: Stripe, Phase 3.
+      split: {
+        code: Math.random().toString(36).slice(2, 6).toUpperCase(),
+        target: deposit,
+        collected: 0,
+        parts: [],
+      },
+      status: "pending", // the club still confirms behind the scenes
+      code: "BK-ORL-" + Math.random().toString(36).slice(2, 6).toUpperCase(),
+      at: Date.now(),
+    };
+    $("reqBackdrop").classList.add("hidden");
+    prepPendingExtras();
+    renderPending();
+    showScreen("pending");
+    startPendingPoll();
+    toast(`Booked. ${v.name} is locking in your night.`);
+  }, 900);
 }
 
 function renderPending() {
@@ -877,23 +923,23 @@ function renderPending() {
   const declined = b.status === "declined";
   $("pendingCard").className = "pending card" + (declined ? " declined" : "");
   $("pendingCard").innerHTML = `
-    <div class="pending-badge ${declined ? "no" : ""}">${declined ? "Not available" : "Pending approval"}</div>
-    <h2 class="pending-title">${declined ? `${b.venueName} could not take this one` : `Request sent to ${b.venueName}`}</h2>
+    <div class="pending-badge ${declined ? "no" : ""}">${declined ? "Refunded" : "Booked · deposit charged"}</div>
+    <h2 class="pending-title">${declined ? `${b.venueName} couldn't host that night` : `You're in at ${b.venueName}`}</h2>
     <p class="pending-sub">${declined
-      ? "No deposit was charged. Try another venue or another night."
-      : `${b.venueName} is reviewing your request. They will approve or decline shortly.`}</p>
+      ? "Your deposit was refunded in full, instantly. Pick another venue or another night."
+      : `Your card was charged and your night is booked. ${b.venueName} is locking it in on their end, and in the rare case they can't host you, you're refunded instantly.`}</p>
     <div class="pending-lines">
       <div class="bline"><span>${b.pkg.name}${bookingAddonsLabel(b)}</span><b>${usd.format(b.price)}</b></div>
       ${signLine(b)}
       <div class="bline"><span>${b.pkg.type === "buyout" ? "Full venue" : "Table"} · ${b.party} people · ${b.occasion}</span><b>${fmtDate(b.date)} · ${b.time}</b></div>
-      <div class="bline total"><span>Deposit ${declined ? "released" : "held"}</span><b>${usd.format(b.deposit)}</b></div>
+      <div class="bline total"><span>Deposit ${declined ? "refunded" : "charged (credited to your bill)"}</span><b>${usd.format(b.deposit)}</b></div>
     </div>
-    ${declined ? "" : `<div id="splitPending"></div>`}
     ${declined
       ? `<button class="btn-primary btn-big" id="pendingRetry">Back to venues</button>`
-      : `<div class="pending-live"><span class="pulse-dot"></span> Waiting on the venue…</div>
-         <button class="btn-line" id="pendingVenueSide">See it from the venue's side →</button>`}`;
+      : `<div class="pending-live"><span class="pulse-dot"></span> ${b.venueName} is confirming, usually minutes</div>
+         <button class="btn-line" id="pendingVenueSide">See it from the club's side →</button>`}`;
 
+  $("pendingExtras").classList.toggle("hidden", declined);
   if (declined) {
     $("pendingRetry").addEventListener("click", resetCustomer);
   } else {
@@ -1105,13 +1151,13 @@ function pReqCard(r) {
   if (r.status === "confirmed") {
     foot = `<div class="p-req-foot"><span class="p-req-status won">Approved. Deposit ${usd.format(r.deposit)} captured.</span>${r.live ? `<button type="button" class="btn-line" id="pView-${r.id}">View customer confirmation →</button>` : ""}</div>`;
   } else if (r.status === "declined") {
-    foot = `<div class="p-req-foot"><span class="p-req-status">Declined. The customer's deposit was released.</span></div>`;
+    foot = `<div class="p-req-foot"><span class="p-req-status">Declined. The customer's deposit was refunded instantly.</span></div>`;
   } else {
     foot = `<div class="p-req-foot">
-      <span class="p-req-status">${r.live ? "A customer just requested this. Approve to confirm the booking." : "Requested directly. Approve to confirm."}</span>
+      <span class="p-req-status">${r.live ? "Paid and booked by a customer just now. Confirm it, or decline to refund them." : "Paid and booked. Confirm it, or decline to refund."}</span>
       <div class="p-req-actions">
         <button type="button" class="btn-textlink" id="pDecline-${r.id}">Decline</button>
-        <button type="button" class="btn-primary" id="pApprove-${r.id}">Approve booking</button>
+        <button type="button" class="btn-primary" id="pApprove-${r.id}">Confirm booking</button>
       </div>
     </div>`;
   }

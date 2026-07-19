@@ -136,9 +136,50 @@
     </div>
   </section>
 
-  <!-- ============ PENDING APPROVAL ============ -->
+  <!-- ============ BOOKED (club confirming) ============ -->
   <section class="screen hidden" id="screen-pending">
     <div class="pending" id="pendingCard"></div>
+    <div class="pending-extras hidden" id="pendingExtras">
+      <div class="extras card">
+        <h3>Make it your night</h3>
+        <p class="extras-sub">All optional. Add or change any of this while the club locks you in.</p>
+        <div class="req-row">
+          <label class="field">
+            <span>Start time</span>
+            <select id="fTime">
+              <option>9:00 PM</option>
+              <option selected>10:00 PM</option>
+              <option>11:00 PM</option>
+              <option>12:00 AM</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Occasion</span>
+            <select id="fOccasion">
+              <option>Birthday</option>
+              <option>Bachelor / bachelorette</option>
+              <option selected>Night out</option>
+              <option>Corporate</option>
+              <option>Celebration</option>
+            </select>
+          </label>
+        </div>
+        <div class="sign-field">
+          <div class="sign-head"><span>LED table sign</span><em id="signCost"></em></div>
+          <input type="text" id="signText" maxlength="28" placeholder='e.g. "Happy 21st Maya"' autocomplete="off" />
+          <div class="sign-suggest">
+            <input type="text" id="signName" maxlength="16" placeholder="Name, for ideas" autocomplete="off" />
+            <button type="button" class="chip" id="signSuggest">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.9L19 9.8l-4.1 2.6L16 18l-4-3-4 3 1.1-5.6L5 9.8l5.1-1.9z" fill="currentColor"/></svg>
+              AI ideas
+            </button>
+          </div>
+          <div class="chips sign-chips hidden" id="signChips"></div>
+          <p class="sign-fine">Shown on your table when you arrive. Ideas are canned in the demo; production uses Claude.</p>
+        </div>
+      </div>
+      <div id="splitPending"></div>
+    </div>
   </section>
 
   <!-- ============ CONFIRMATION ============ -->
@@ -202,49 +243,15 @@
 <div class="modal-backdrop hidden" id="reqBackdrop">
   <div class="modal card" role="dialog" aria-modal="true">
     <button class="modal-x" id="reqClose">×</button>
-    <p class="modal-kicker">Request to book</p>
+    <p class="modal-kicker">Confirm and pay</p>
     <h3 id="reqVenue"></h3>
     <div class="book-lines" id="reqSummary"></div>
-    <div class="req-row">
-      <label class="field">
-        <span>Start time</span>
-        <select id="fTime">
-          <option>9:00 PM</option>
-          <option selected>10:00 PM</option>
-          <option>11:00 PM</option>
-          <option>12:00 AM</option>
-        </select>
-      </label>
-      <label class="field">
-        <span>Occasion</span>
-        <select id="fOccasion">
-          <option>Birthday</option>
-          <option>Bachelor / bachelorette</option>
-          <option selected>Night out</option>
-          <option>Corporate</option>
-          <option>Celebration</option>
-        </select>
-      </label>
-    </div>
-    <div class="sign-field">
-      <div class="sign-head"><span>LED table sign</span><em id="signCost"></em></div>
-      <input type="text" id="signText" maxlength="28" placeholder='e.g. "Happy 21st Maya"' autocomplete="off" />
-      <div class="sign-suggest">
-        <input type="text" id="signName" maxlength="16" placeholder="Name, for ideas" autocomplete="off" />
-        <button type="button" class="chip" id="signSuggest">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.9L19 9.8l-4.1 2.6L16 18l-4-3-4 3 1.1-5.6L5 9.8l5.1-1.9z" fill="currentColor"/></svg>
-          AI ideas
-        </button>
-      </div>
-      <div class="chips sign-chips hidden" id="signChips"></div>
-      <p class="sign-fine">Optional. Shown on your table when you arrive. Ideas are canned in the demo; production uses Claude.</p>
-    </div>
     <label class="field">
       <span>Card <em>(demo, not charged)</em></span>
       <input type="text" id="reqCard" value="4242 4242 4242 4242" readonly />
     </label>
-    <button class="btn-primary btn-big" id="reqSubmit">Send booking request <b id="reqDep"></b></button>
-    <p class="modal-fine">Your deposit is only held now and charged if the venue approves. Nothing is charged if they decline. Free cancellation window &amp; no-show policy: TBD in PLAN.md.</p>
+    <button class="btn-primary btn-big" id="reqSubmit">Book this night <b id="reqDep"></b></button>
+    <p class="modal-fine">Your deposit is charged now and credited toward your bill at the venue. The club locks in your booking on their end; in the rare case they can't host your night, you're refunded in full, instantly.</p>
   </div>
 </div>
 
