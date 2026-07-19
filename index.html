@@ -94,21 +94,12 @@
     </div>
 
     <div class="browse-tools">
-      <div class="mode-toggle" id="modeToggle" role="tablist" aria-label="How to book">
-        <button type="button" class="mode-opt active" data-mode="book" role="tab">Book a venue</button>
-        <button type="button" class="mode-opt" data-mode="compare" role="tab">Compare quotes</button>
+      <div class="mode-toggle" id="typeToggle" role="tablist" aria-label="What to book">
+        <button type="button" class="mode-opt active" data-filter="all" role="tab">All</button>
+        <button type="button" class="mode-opt" data-filter="table" role="tab">Tables</button>
+        <button type="button" class="mode-opt" data-filter="buyout" role="tab">Full venues</button>
       </div>
-    </div>
-
-    <div class="prod-tabs hidden" id="prodTabs" role="tablist" aria-label="Booking type">
-      <button type="button" class="prod-tab active" data-type="buyout" role="tab">
-        <svg viewBox="0 0 24 24"><path d="M4 21V6l8-3 8 3v15M4 21h16M9 21v-5h6v5M8 9h.01M12 9h.01M16 9h.01M8 13h.01M16 13h.01"/></svg>
-        Venues
-      </button>
-      <button type="button" class="prod-tab" data-type="table" role="tab">
-        <svg viewBox="0 0 24 24"><path d="M4 10h16M4 10a8 8 0 0116 0M12 10v10M8 20h8"/></svg>
-        Tables
-      </button>
+      <button type="button" class="btn-textlink compare-link" id="modeLink">Compare quotes from every venue →</button>
     </div>
 
     <div id="bookRows">

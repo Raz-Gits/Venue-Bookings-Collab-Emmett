@@ -233,32 +233,6 @@ body {
 .btn-ai:hover { background: #000; transform: translateY(-1px); }
 .btn-ai:active { transform: none; }
 
-/* ---------- product tabs (Table / Buyout) ---------- */
-.prod-tabs {
-  display: inline-flex;
-  gap: 8px;
-  margin: 22px 0 18px;
-  border-bottom: 1px solid var(--hairline-soft);
-  animation: rise 0.5s 0.16s both;
-}
-.prod-tab {
-  display: flex; align-items: center; gap: 8px;
-  font-family: var(--font); font-weight: 600; font-size: 0.95rem;
-  color: var(--muted);
-  background: none; border: 0;
-  padding: 4px 6px 14px;
-  cursor: pointer;
-  position: relative;
-  transition: color 0.15s;
-}
-.prod-tab svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.6; }
-.prod-tab:hover { color: var(--ink); }
-.prod-tab.active { color: var(--ink); }
-.prod-tab.active::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
-  height: 2px; background: var(--ink); border-radius: 2px;
-}
-
 /* ---------- filters row ---------- */
 .filters {
   display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
@@ -1413,7 +1387,6 @@ body {
 
 @media (max-width: 380px) {
   .hero-title { font-size: 1.85rem; }
-  .prod-tab { font-size: 0.88rem; padding: 4px 4px 12px; }
   .v-photo { font-size: 2.4rem; }
 }
 
@@ -1531,3 +1504,7 @@ body {
 
 /* budget rides in the compare sendbar (promoters see it in the request) */
 .sendbar .budget-pill { flex-shrink: 0; background: var(--canvas); }
+
+/* compare link sits opposite the All/Tables/Full venues toggle */
+.compare-link { margin-left: auto; font-size: 0.88rem; color: var(--muted); text-decoration-color: var(--hairline); }
+.compare-link:hover { color: var(--rausch); }

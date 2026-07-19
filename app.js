@@ -97,7 +97,8 @@ const NOTES_POOL = [
 const state = {
   city: "Orlando",        // chosen on the entry screen
   mode: "book",           // "book" (request + venue approves) or "compare" (quote auction)
-  type: "buyout",         // default tab: Venues (whole-venue buyout)
+  type: "buyout",         // what a specific booking is for: table or whole-venue buyout
+  filter: "all",          // explore filter: "all" | "table" | "buyout"
   range: { start: null, end: null }, // the When picker's date range (null = anytime)
   addons: {},             // tables added onto a buyout: pkgId -> qty
   date: "",
@@ -309,24 +310,27 @@ const roundTo = (n, step) => Math.round(n / step) * step;
 /* ---------- browse screen ---------- */
 
 function bindBrowse() {
-  document.querySelectorAll("#modeToggle .mode-opt").forEach((b) =>
+  // what to book: All / Tables / Full venues (filters the grid, and sets the quote type in compare)
+  document.querySelectorAll("#typeToggle .mode-opt").forEach((b) =>
     b.addEventListener("click", () => {
-      document.querySelectorAll("#modeToggle .mode-opt").forEach((x) => x.classList.remove("active"));
-      b.classList.add("active");
-      state.mode = b.dataset.mode;
-      applyModeUI();
+      state.filter = b.dataset.filter;
+      if (state.filter !== "all") state.type = state.filter; // venue page + compare follow the choice
+      syncFilterUI();
       renderGrid();
     })
   );
 
-  document.querySelectorAll(".prod-tab").forEach((b) =>
-    b.addEventListener("click", () => {
-      document.querySelectorAll(".prod-tab").forEach((x) => x.classList.remove("active"));
-      b.classList.add("active");
-      state.type = b.dataset.type;
-      renderGrid();
-    })
-  );
+  // compare quotes is the secondary flow, tucked behind a text link
+  $("modeLink").addEventListener("click", () => {
+    state.mode = state.mode === "compare" ? "book" : "compare";
+    if (state.mode === "compare" && state.filter === "all") {
+      state.filter = "buyout"; // a quote blast needs a concrete type
+      state.type = "buyout";
+    }
+    syncFilterUI();
+    applyModeUI();
+    renderGrid();
+  });
 
   $("fDate").addEventListener("change", (e) => { state.date = e.target.value; });
   $("fTime").addEventListener("change", (e) => { state.time = e.target.value; });
@@ -368,6 +372,12 @@ function bindBrowse() {
 
 function syncWho() {
   $("whoText").textContent = `${state.party} guest${state.party === 1 ? "" : "s"}`;
+}
+
+function syncFilterUI() {
+  document.querySelectorAll("#typeToggle .mode-opt").forEach((x) =>
+    x.classList.toggle("active", x.dataset.filter === state.filter)
+  );
 }
 
 function matchedVenues() {
@@ -481,11 +491,14 @@ function renderRangeCal() {
 function applyModeUI() {
   const compare = state.mode === "compare";
   $("bookRows").classList.toggle("hidden", compare);
-  $("prodTabs").classList.toggle("hidden", !compare);
   $("browseHead").classList.toggle("hidden", !compare);
   $("venueGrid").classList.toggle("hidden", !compare);
   $("sendbar").classList.toggle("hidden", !compare);
   $("btnPromoter").style.display = compare ? "" : "none"; // roleplay phone is a compare-mode tool
+  $("modeLink").textContent = compare ? "← Back to booking" : "Compare quotes from every venue →";
+  // "All" makes no sense for a quote blast; hide it while comparing
+  const allOpt = document.querySelector('#typeToggle [data-filter="all"]');
+  if (allOpt) allOpt.style.display = compare ? "none" : "";
 }
 
 function renderGrid() {
@@ -507,10 +520,13 @@ function nightWord() {
   return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short" });
 }
 
-// one card per venue; both options (tables + full venue) priced for your night
+// one card per venue; pricing lines follow the All / Tables / Full venues filter
 function bookCard(v) {
   const tMin = priceForNight(pkgTypeBase(v, "table"), state.date);
   const bMin = priceForNight(pkgTypeBase(v, "buyout"), state.date);
+  const priceLine = state.filter === "table" ? `Tables from ${usd.format(tMin)}`
+    : state.filter === "buyout" ? `Full venue from ${usd.format(bMin)}`
+    : `Tables from ${usd.format(tMin)} · Full venue ${compactMoney(bMin)}`;
   return `<article class="pcard" data-id="${v.id}">
     <div class="pcard-photo" style="${photoBg(v, 0)}">
       ${venuePhotos(v) ? "" : `<span class="pcard-glyph">${v.glyph}</span>`}
@@ -518,13 +534,15 @@ function bookCard(v) {
       <button type="button" class="pcard-heart" aria-label="Save ${v.name}"><svg viewBox="0 0 32 32"><path d="M16 28C7.9 22.7 3 17.9 3 12.4 3 8.3 6.3 5 10.4 5c2.4 0 4.6 1.1 6 2.9C17.7 6.1 19.9 5 22.3 5 26.4 5 29 8.3 29 12.4c0 5.5-4.9 10.3-13 15.6z"/></svg></button>
     </div>
     <div class="pcard-name">${v.name} · ${v.area}</div>
-    <div class="pcard-sub">Tables from ${usd.format(tMin)} · Full venue ${compactMoney(bMin)}</div>
+    <div class="pcard-sub">${priceLine}</div>
     <div class="pcard-sub">${starSvg()} ${v.rating.toFixed(2)} · ${nightWord()} night</div>
   </article>`;
 }
 
 function renderRows() {
-  $("exploreTitle").textContent = `Clubs and venues in ${state.city}`;
+  $("exploreTitle").textContent = state.filter === "table" ? `Tables in ${state.city}`
+    : state.filter === "buyout" ? `Full venues in ${state.city}`
+    : `Clubs and venues in ${state.city}`;
   // venues with real photos lead, so the page opens photo-first
   const vs = [...matchedVenues()].sort((a, b) => (venuePhotos(b) ? 1 : 0) - (venuePhotos(a) ? 1 : 0));
   $("exploreGrid").innerHTML = vs.map(bookCard).join("");
@@ -1750,7 +1768,8 @@ function launchFromChat() {
   const c = chat.collected;
   if (c.type) {
     state.type = c.type;
-    document.querySelectorAll(".prod-tab").forEach((x) => x.classList.toggle("active", x.dataset.type === state.type));
+    state.filter = state.type;
+    syncFilterUI();
   }
   if (c.date) {
     $("fDate").value = c.date;
