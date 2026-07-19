@@ -45,28 +45,92 @@
     </div>
   </section>
 
-  <!-- ============ BROWSE + BUILD REQUEST ============ -->
+  <!-- ============ BROWSE (Airbnb-look) + BUILD REQUEST ============ -->
   <section class="screen hidden" id="screen-browse">
-    <div class="hero">
-      <button type="button" class="hero-kicker city-chip" id="cityChip">Orlando · change city</button>
-      <h1 class="hero-title">Pick your venues.<br /><em>Every promoter</em> quotes you.</h1>
-      <p class="hero-sub">Choose the spots you like, tell them your night, and send one request. Quotes land on a one-hour countdown, and you compare and book with a deposit. Free for you, always. Or open a venue to book it on its own.</p>
+
+    <div class="search-zone">
+      <div class="search-pill" id="searchPill">
+        <button type="button" class="seg" id="segWhere">
+          <b>Where</b><span class="setv" id="whereText">Orlando, FL</span>
+        </button>
+        <div class="seg-div"></div>
+        <div class="seg-wrap">
+          <button type="button" class="seg" id="whenPill" aria-haspopup="dialog" aria-controls="whenPop">
+            <b>When</b><span id="whenLabel">Add dates</span>
+          </button>
+          <div class="when-pop hidden" id="whenPop" role="dialog" aria-label="Choose your dates">
+            <div class="rc" id="rcCal"></div>
+            <div class="when-foot">
+              <button type="button" class="btn-textlink" id="whenClear">Clear</button>
+              <button type="button" class="btn-primary" id="whenDone">Done</button>
+            </div>
+          </div>
+          <input type="date" id="fDate" hidden />
+        </div>
+        <div class="seg-div"></div>
+        <div class="seg-wrap">
+          <button type="button" class="seg" id="segWho" aria-haspopup="dialog" aria-controls="whoPop">
+            <b>Who</b><span id="whoText">Add guests</span>
+          </button>
+          <div class="when-pop who-pop hidden" id="whoPop" role="dialog" aria-label="How many guests">
+            <div class="who-row">
+              <div><b>Guests</b><small>Your whole group, big is fine</small></div>
+              <div class="stepper">
+                <button type="button" class="step-btn" id="whoMinus" aria-label="Fewer guests">-</button>
+                <input type="number" id="fPartyNum" class="who-input" value="8" min="1" max="2000" inputmode="numeric" aria-label="Number of guests" />
+                <button type="button" class="step-btn" id="whoPlus" aria-label="More guests">+</button>
+              </div>
+            </div>
+            <div class="when-foot">
+              <span class="who-hint">people, edit freely</span>
+              <button type="button" class="btn-primary" id="whoDone">Done</button>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="search-go" id="btnGo" aria-label="Search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+        </button>
+      </div>
     </div>
 
-    <div class="ai-cta">
-      <span>Don't feel like filling this out?</span>
-      <button type="button" class="btn-ai" id="btnAskAI">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.9L19 9.8l-4.1 2.6L16 18l-4-3-4 3 1.1-5.6L5 9.8l5.1-1.9z" fill="currentColor"/></svg>
-        Ask AI to plan it
-      </button>
+    <div class="browse-tools">
+      <div class="mode-toggle" id="modeToggle" role="tablist" aria-label="How to book">
+        <button type="button" class="mode-opt active" data-mode="book" role="tab">Book a venue</button>
+        <button type="button" class="mode-opt" data-mode="compare" role="tab">Compare quotes</button>
+      </div>
+      <div class="detail-chips">
+        <label class="refine-pill">
+          <span>Start</span>
+          <select id="fTime">
+            <option>9:00 PM</option>
+            <option selected>10:00 PM</option>
+            <option>11:00 PM</option>
+            <option>12:00 AM</option>
+          </select>
+        </label>
+        <label class="refine-pill">
+          <span>Occasion</span>
+          <select id="fOccasion">
+            <option>Birthday</option>
+            <option>Bachelor / bachelorette</option>
+            <option selected>Night out</option>
+            <option>Corporate</option>
+            <option>Celebration</option>
+          </select>
+        </label>
+        <div class="refine-pill budget-pill">
+          <span>Budget</span>
+          <em class="cur">$</em>
+          <input type="number" id="fBudget" class="budget-input" placeholder="total" min="0" step="50" inputmode="numeric" aria-label="Total budget (optional)" />
+        </div>
+        <button type="button" class="btn-ai btn-ai-chip" id="btnAskAI">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.9L19 9.8l-4.1 2.6L16 18l-4-3-4 3 1.1-5.6L5 9.8l5.1-1.9z" fill="currentColor"/></svg>
+          Ask AI
+        </button>
+      </div>
     </div>
 
-    <div class="mode-toggle" id="modeToggle" role="tablist" aria-label="How to book">
-      <button type="button" class="mode-opt active" data-mode="book" role="tab">Book a venue</button>
-      <button type="button" class="mode-opt" data-mode="compare" role="tab">Compare quotes</button>
-    </div>
-
-    <div class="prod-tabs" role="tablist" aria-label="Booking type">
+    <div class="prod-tabs hidden" id="prodTabs" role="tablist" aria-label="Booking type">
       <button type="button" class="prod-tab active" data-type="buyout" role="tab">
         <svg viewBox="0 0 24 24"><path d="M4 21V6l8-3 8 3v15M4 21h16M9 21v-5h6v5M8 9h.01M12 9h.01M16 9h.01M8 13h.01M16 13h.01"/></svg>
         Venues
@@ -77,63 +141,40 @@
       </button>
     </div>
 
-    <div class="filters" id="filters">
-      <div class="when-wrap">
-        <button type="button" class="refine-pill when-pill" id="whenPill" aria-haspopup="dialog" aria-controls="whenPop">
-          <span>When</span>
-          <em id="whenLabel">Add dates</em>
-        </button>
-        <div class="when-pop hidden" id="whenPop" role="dialog" aria-label="Choose your dates">
-          <div class="rc" id="rcCal"></div>
-          <div class="when-foot">
-            <button type="button" class="btn-textlink" id="whenClear">Clear</button>
-            <button type="button" class="btn-primary" id="whenDone">Done</button>
-          </div>
-        </div>
-        <input type="date" id="fDate" hidden />
-      </div>
-      <div class="refine-pill guests-pill">
-        <span>Guests</span>
-        <input type="number" id="fPartyNum" class="guests-input" value="8" min="1" max="2000" inputmode="numeric" aria-label="Number of guests" />
-        <em id="guestHint">people</em>
-      </div>
-      <label class="refine-pill">
-        <span>Start</span>
-        <select id="fTime">
-          <option>9:00 PM</option>
-          <option selected>10:00 PM</option>
-          <option>11:00 PM</option>
-          <option>12:00 AM</option>
-        </select>
-      </label>
-      <label class="refine-pill">
-        <span>Occasion</span>
-        <select id="fOccasion">
-          <option>Birthday</option>
-          <option>Bachelor / bachelorette</option>
-          <option selected>Night out</option>
-          <option>Corporate</option>
-          <option>Celebration</option>
-        </select>
-      </label>
-      <div class="refine-pill budget-pill">
-        <span>Budget</span>
-        <em class="cur">$</em>
-        <input type="number" id="fBudget" class="budget-input" placeholder="total" min="0" step="50" inputmode="numeric" aria-label="Total budget (optional)" />
-      </div>
-    </div>
-
     <div class="deal-strip hidden" id="dealStrip">
       <div class="deal-strip-head"><b id="dealTitle">Deal nights this month</b><span id="dealStripHint"></span></div>
       <div class="deal-days" id="dealDays"></div>
     </div>
 
-    <div class="browse-head">
-      <h2 class="browse-count" id="browseCount"></h2>
-      <p class="browse-hint" id="browseHint">Tap a venue to see prices and book.</p>
+    <div id="bookRows">
+      <section class="row">
+        <div class="row-head">
+          <h2 class="row-title" id="rowBuyoutsTitle">Full-venue buyouts</h2>
+          <div class="row-nav">
+            <button type="button" data-row="rowBuyouts" data-scroll="-1" aria-label="Scroll back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="button" data-row="rowBuyouts" data-scroll="1" aria-label="Scroll forward"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+        </div>
+        <div class="cards" id="rowBuyouts"></div>
+      </section>
+      <section class="row">
+        <div class="row-head">
+          <h2 class="row-title" id="rowTablesTitle">Tables</h2>
+          <div class="row-nav">
+            <button type="button" data-row="rowTables" data-scroll="-1" aria-label="Scroll back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button type="button" data-row="rowTables" data-scroll="1" aria-label="Scroll forward"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+        </div>
+        <div class="cards" id="rowTables"></div>
+      </section>
     </div>
 
-    <div class="venue-grid" id="venueGrid"></div>
+    <div class="browse-head hidden" id="browseHead">
+      <h2 class="browse-count" id="browseCount"></h2>
+      <p class="browse-hint" id="browseHint">Tap venues to pick who quotes you.</p>
+    </div>
+
+    <div class="venue-grid hidden" id="venueGrid"></div>
 
     <div class="sendbar hidden" id="sendbar">
       <div class="sendbar-info">
@@ -199,6 +240,7 @@
       <h2 id="confirmVenue"></h2>
       <p class="confirm-code">Confirmation <b id="confirmCode"></b></p>
       <div class="confirm-lines" id="confirmLines"></div>
+      <div id="splitConfirm"></div>
       <p class="confirm-fine">A text confirmation was sent to your phone <em>(simulated)</em>. Your deposit is credited toward your bill at the venue. BookOut's 10% fee is paid by the venue, so you pay $0 in fees.</p>
       <button class="btn-primary btn-big" id="btnNewSearch">Plan another night</button>
     </div>
@@ -254,6 +296,19 @@
     <p class="modal-kicker">Request to book</p>
     <h3 id="reqVenue"></h3>
     <div class="book-lines" id="reqSummary"></div>
+    <div class="sign-field">
+      <div class="sign-head"><span>LED table sign</span><em id="signCost"></em></div>
+      <input type="text" id="signText" maxlength="28" placeholder='e.g. "Happy 21st Maya"' autocomplete="off" />
+      <div class="sign-suggest">
+        <input type="text" id="signName" maxlength="16" placeholder="Name, for ideas" autocomplete="off" />
+        <button type="button" class="chip" id="signSuggest">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 4.9L19 9.8l-4.1 2.6L16 18l-4-3-4 3 1.1-5.6L5 9.8l5.1-1.9z" fill="currentColor"/></svg>
+          AI ideas
+        </button>
+      </div>
+      <div class="chips sign-chips hidden" id="signChips"></div>
+      <p class="sign-fine">Optional. Shown on your table when you arrive. Ideas are canned in the demo; production uses Claude.</p>
+    </div>
     <label class="field">
       <span>Card <em>(demo, not charged)</em></span>
       <input type="text" id="reqCard" value="4242 4242 4242 4242" readonly />

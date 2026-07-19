@@ -24,6 +24,26 @@ shared month calendar for picking the night, a browse "deal nights" strip, and
 a richer venue page (gallery, facts, amenities). Emmett's PR used *instant*
 book; we kept our **venue-approval** step on top of their pricing.
 
+## Update 2026-07-19 (look + group features)
+
+The browse screen now uses the **Airbnb-style home layout** trialed in
+`preview-airbnb.html`: a Where / When / Who search pill (When opens the ported
+React Aria range calendar), slim detail chips, and photo-first carousels for
+buyouts and tables (venues with real photos lead). Compare-quotes mode keeps
+the multi-select grid. New features, all simulated in the demo:
+
+- **Add tables to a buyout**: per-night priced table add-ons, each with its
+  own deposit rate, flowing through request → approval → dashboard.
+- **Split the deposit (organizer-guarantee model)**: never all-or-nothing.
+  The organizer's card guarantees the full deposit, friends chip in by share
+  link, and whatever's unpaid at the cutoff stays on the organizer (shares
+  credited back). Real version is Stripe, Phase 3.
+- **LED table sign**: optional field on the booking request that flows to the
+  promoter's request card. Included with VIP booth and buyouts; +$50 add-on
+  on other tables, billed at the venue. "AI ideas" are canned templates in
+  the demo; production swaps in a small Claude call.
+- **Temp real photos** on three venues (see launch blocker in long-lead items).
+
 ## Decisions
 
 | Decision | Answer |
@@ -75,6 +95,7 @@ Goal: a real venue on their own phone approves a real customer's request end to 
 - Booking requests persist with real status transitions: requested → approved / declined / expired.
 - **Server-side pricing**: the demand/early-bird engine moves into an edge function; the client displays prices but the server computes the one that counts at booking time.
 - Customer phone verification (SMS OTP) to submit a request. No accounts yet.
+- Sign field persists with the booking; AI sign suggestions become a small server-side Claude call.
 - Promoter magic-link auth into the dashboard (decision already locked: magic link first).
 - Twilio SMS to the promoter on new request, with the magic link. **Start A2P 10DLC registration immediately, it takes weeks and blocks all US SMS.**
 - Realtime status updates via Supabase subscriptions (replaces the demo's polling).
@@ -88,6 +109,7 @@ Goal: the deposit actually moves, commission is actually taken.
 
 - Stripe: card collected at request time (SetupIntent), **charged only on venue approval**. No approval, no charge.
 - Stripe Connect for venue payouts: deposit in, ~10% commission held back, rest to the venue.
+- Split deposits for real (organizer-guarantee): organizer's card is the guarantee, share-link chip-ins via Stripe, auto-settle the unpaid remainder on the organizer at the cutoff. Never blocks the booking.
 - Cancellation/refund policy implemented (blocking decision below).
 - Receipts and confirmation emails/SMS to both sides.
 - ToS + privacy policy + venue commission agreement (template lawyer pass).

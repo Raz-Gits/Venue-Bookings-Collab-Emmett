@@ -125,20 +125,38 @@ const WAITING_HTML =
   `<p>Waiting for the first quote…<br><small>Promoters are typing. Try the <b>Promoter view</b> ↗ to send one yourself.</small></p>`;
 
 // set prices/packages each venue lists upfront (book-and-approve model)
+// sign: "included" = LED table sign comes with it · "addon" = +$50, billed at the venue
 function venuePackages(v) {
   const t = v.band, b = v.buyout;
   return [
-    { id: v.id + "-t1", type: "table", name: "Standard table", price: roundTo(t[0], 25), depPct: 20, cap: "up to 6 guests",
+    { id: v.id + "-t1", type: "table", name: "Standard table", price: roundTo(t[0], 25), depPct: 20, cap: "up to 6 guests", sign: "addon",
       includes: ["Reserved table with bottle minimum", "Skip-the-line entry for your group"] },
-    { id: v.id + "-t2", type: "table", name: "Dancefloor table", price: roundTo((t[0] + t[1]) / 2, 25), depPct: 20, cap: "up to 10 guests",
+    { id: v.id + "-t2", type: "table", name: "Dancefloor table", price: roundTo((t[0] + t[1]) / 2, 25), depPct: 20, cap: "up to 10 guests", sign: "addon",
       includes: ["Prime table by the floor", "2 bottles and mixers included", "Skip-the-line entry"] },
-    { id: v.id + "-t3", type: "table", name: "VIP booth", price: roundTo(t[1], 25), depPct: 25, cap: "up to 15 guests",
-      includes: ["Best booth in the house", "Dedicated server all night", "Champagne on arrival"] },
-    { id: v.id + "-b1", type: "buyout", name: "Full venue buyout", price: roundTo(b[0], 100), depPct: 20, cap: "whole venue",
+    { id: v.id + "-t3", type: "table", name: "VIP booth", price: roundTo(t[1], 25), depPct: 25, cap: "up to 15 guests", sign: "included",
+      includes: ["Best booth in the house", "Dedicated server all night", "Champagne on arrival", "Custom LED table sign"] },
+    { id: v.id + "-b1", type: "buyout", name: "Full venue buyout", price: roundTo(b[0], 100), depPct: 20, cap: "whole venue", sign: "included",
       includes: ["The entire venue for the night", "Your own guest list", "Dedicated event manager"] },
-    { id: v.id + "-b2", type: "buyout", name: "Premium buyout", price: roundTo(b[1], 100), depPct: 25, cap: "whole venue and extras",
+    { id: v.id + "-b2", type: "buyout", name: "Premium buyout", price: roundTo(b[1], 100), depPct: 25, cap: "whole venue and extras", sign: "included",
       includes: ["Entire venue and rooftop", "Custom production and staffing", "Security and coat check"] },
   ].map((p) => ({ ...p, deposit: roundTo((p.price * p.depPct) / 100, 10) }));
+}
+
+const SIGN_PRICE = 50; // LED sign add-on when not included; billed at the venue, not in the deposit
+
+/* canned "AI" sign lines for the demo; production swaps this for a small Claude call */
+const SIGN_TEMPLATES = {
+  "Birthday": ["Happy Birthday {n}", "{n}'s Big Night", "Cheers to {n}"],
+  "Bachelor / bachelorette": ["{n}'s Last Dance", "Team {n} Tonight", "The {n} Party"],
+  "Corporate": ["Cheers to the Team", "{n} Night Out", "Big Wins Only"],
+  "Celebration": ["Cheers to {n}", "Pop the Champagne", "{n} Did the Thing"],
+  "Night out": ["The {n} Crew", "VIP: {n} + Friends", "Good Nights Only"],
+};
+
+function suggestSigns(occasion, name) {
+  const base = SIGN_TEMPLATES[occasion] || SIGN_TEMPLATES["Night out"];
+  const n = (name || "").trim() || "the Crew";
+  return base.map((t) => t.replaceAll("{n}", n));
 }
 
 function packageById(v, id) { return venuePackages(v).find((p) => p.id === id); }
@@ -318,6 +336,7 @@ function bindBrowse() {
     let n = parseInt(e.target.value, 10);
     if (!Number.isFinite(n)) return;
     state.party = Math.min(2000, Math.max(1, n));
+    syncWho();
   });
   $("fPartyNum").addEventListener("blur", (e) => {
     e.target.value = state.party;
@@ -329,6 +348,38 @@ function bindBrowse() {
   });
 
   $("btnSend").addEventListener("click", startRequest);
+
+  // Who popover (guests stepper)
+  $("segWho").addEventListener("click", () => {
+    $("whenPop").classList.add("hidden");
+    $("whoPop").classList.toggle("hidden");
+  });
+  $("whoDone").addEventListener("click", () => $("whoPop").classList.add("hidden"));
+  $("whoMinus").addEventListener("click", () => { state.party = Math.max(1, state.party - 1); $("fPartyNum").value = state.party; syncWho(); });
+  $("whoPlus").addEventListener("click", () => { state.party = Math.min(2000, state.party + 1); $("fPartyNum").value = state.party; syncWho(); });
+
+  // search button: apply and jump to the rows
+  $("btnGo").addEventListener("click", () => {
+    renderGrid();
+    const rows = $("bookRows");
+    if (rows.scrollIntoView) rows.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  // carousel chevrons
+  document.querySelectorAll(".row-nav button").forEach((b) =>
+    b.addEventListener("click", () => {
+      const row = $(b.dataset.row);
+      row.scrollBy({ left: Number(b.dataset.scroll) * (row.clientWidth - 80), behavior: "smooth" });
+    })
+  );
+}
+
+function syncWho() {
+  $("whoText").textContent = `${state.party} guest${state.party === 1 ? "" : "s"}`;
+}
+
+function syncTypeTabs() {
+  document.querySelectorAll(".prod-tab").forEach((x) => x.classList.toggle("active", x.dataset.type === state.type));
 }
 
 function matchedVenues() {
@@ -356,15 +407,17 @@ function bindWhen() {
     pop.classList.remove("hidden");
   };
   pill.addEventListener("click", () => {
+    $("whoPop").classList.add("hidden");
     if (pop.classList.contains("hidden")) openPop(); else pop.classList.add("hidden");
   });
   document.addEventListener("click", (e) => {
-    if (!e.target.closest(".when-wrap")) pop.classList.add("hidden");
+    if (!e.target.closest(".seg-wrap")) { pop.classList.add("hidden"); $("whoPop").classList.add("hidden"); }
   });
   $("whenClear").addEventListener("click", () => {
     state.range = { start: null, end: null };
     syncWhenLabel();
     renderRangeCal();
+    if (state.mode === "book") renderRows(); // card prices follow your dates
     renderDealStrip();
   });
   $("whenDone").addEventListener("click", () => pop.classList.add("hidden"));
@@ -384,6 +437,7 @@ function rcPick(iso) {
 
   syncWhenLabel();
   renderRangeCal();
+  if (state.mode === "book") renderRows(); // card prices follow your dates
   renderDealStrip();
 }
 
@@ -446,12 +500,14 @@ function dealWindow() {
   return { start: today, end: isoAddDays(today, 27), ranged: false };
 }
 
-// swap the browse chrome (hint, sendbar, promoter-roleplay button) to match the current mode
+// swap the browse chrome to match the current mode:
+// book = Airbnb-look carousels · compare = multi-select grid + sendbar
 function applyModeUI() {
   const compare = state.mode === "compare";
-  $("browseHint").textContent = compare
-    ? "Tap venues to pick who quotes you, then compare their offers."
-    : "Tap a venue to see prices and book.";
+  $("bookRows").classList.toggle("hidden", compare);
+  $("prodTabs").classList.toggle("hidden", !compare);
+  $("browseHead").classList.toggle("hidden", !compare);
+  $("venueGrid").classList.toggle("hidden", !compare);
   $("sendbar").classList.toggle("hidden", !compare);
   $("btnPromoter").style.display = compare ? "" : "none"; // roleplay phone is a compare-mode tool
 }
@@ -461,10 +517,58 @@ function renderGrid() {
   state.date = $("fDate").value;
   state.time = $("fTime").value;
   state.occasion = $("fOccasion").value;
+  syncWho();
 
-  const compare = state.mode === "compare";
+  if (state.mode === "compare") renderCompareGrid();
+  else renderRows();
+  renderDealStrip();
+}
+
+/* ---- book mode: Airbnb-look photo carousels ---- */
+
+function nightWord() {
+  if (!state.date) return "Fri";
+  const [y, m, d] = state.date.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short" });
+}
+
+function bookCard(v, type) {
+  const price = priceForNight(pkgTypeBase(v, type), state.date);
+  return `<article class="pcard" data-id="${v.id}" data-type="${type}">
+    <div class="pcard-photo" style="${photoBg(v, 0)}">
+      ${venuePhotos(v) ? "" : `<span class="pcard-glyph">${v.glyph}</span>`}
+      ${v.fav ? `<span class="pcard-fav">Guest favorite</span>` : ""}
+      <button type="button" class="pcard-heart" aria-label="Save ${v.name}"><svg viewBox="0 0 32 32"><path d="M16 28C7.9 22.7 3 17.9 3 12.4 3 8.3 6.3 5 10.4 5c2.4 0 4.6 1.1 6 2.9C17.7 6.1 19.9 5 22.3 5 26.4 5 29 8.3 29 12.4c0 5.5-4.9 10.3-13 15.6z"/></svg></button>
+    </div>
+    <div class="pcard-name">${v.name} · ${v.area}</div>
+    <div class="pcard-sub">from ${usd.format(price)} for ${nightWord()} night · ${starSvg()} ${v.rating.toFixed(2)}</div>
+  </article>`;
+}
+
+function renderRows() {
+  $("rowBuyoutsTitle").textContent = `Full-venue buyouts in ${state.city}`;
+  $("rowTablesTitle").textContent = `Tables in ${state.city}`;
+  // venues with real photos lead, so the rows open photo-first
+  const vs = [...matchedVenues()].sort((a, b) => (venuePhotos(b) ? 1 : 0) - (venuePhotos(a) ? 1 : 0));
+  $("rowBuyouts").innerHTML = vs.map((v) => bookCard(v, "buyout")).join("");
+  $("rowTables").innerHTML = vs.map((v) => bookCard(v, "table")).join("");
+  $("bookRows").querySelectorAll(".pcard").forEach((c) =>
+    c.addEventListener("click", () => {
+      state.type = c.dataset.type; // the row you booked from decides tables vs buyout
+      syncTypeTabs();
+      openVenue(c.dataset.id);
+    })
+  );
+  $("bookRows").querySelectorAll(".pcard-heart").forEach((h) =>
+    h.addEventListener("click", (e) => { e.stopPropagation(); h.classList.toggle("on"); })
+  );
+}
+
+/* ---- compare mode: multi-select grid (the quote auction) ---- */
+
+function renderCompareGrid() {
   const matches = matchedVenues();
-  if (compare) state.selected = new Set(matches.map((v) => v.id)); // all pre-selected for the quote blast
+  state.selected = new Set(matches.map((v) => v.id)); // all pre-selected for the quote blast
 
   $("browseCount").textContent = `${matches.length} venue${matches.length === 1 ? "" : "s"} in ${state.city}`;
 
@@ -476,7 +580,7 @@ function renderGrid() {
       : `from ${usd.format(v.band[0])}`;
     const priceSuffix = state.type === "buyout" ? "/ venue" : "/ table";
     const card = document.createElement("article");
-    card.className = "v-card" + (compare ? " selected" : "");
+    card.className = "v-card selected";
     const delay = `${i * 55}ms`;
     card.style.animationDelay = delay;
     card.style.setProperty("--hue", (i * 40) % 360); // carnival: each card a different hue
@@ -485,9 +589,9 @@ function renderGrid() {
       <div class="v-photo" style="${photoBg(v, 0)}">
         ${venuePhotos(v) ? "" : v.glyph}
         ${v.fav ? `<span class="v-fav">Guest favorite</span>` : ""}
-        ${compare ? `<button class="v-heart" type="button" aria-label="Add or remove ${v.name}">
+        <button class="v-heart" type="button" aria-label="Add or remove ${v.name}">
           <svg viewBox="0 0 32 32"><path d="M16 28C7.9 22.7 3 17.9 3 12.4 3 8.3 6.3 5 10.4 5c2.4 0 4.6 1.1 6 2.9C17.7 6.1 19.9 5 22.3 5 26.4 5 29 8.3 29 12.4c0 5.5-4.9 10.3-13 15.6z"/></svg>
-        </button>` : ""}
+        </button>
       </div>
       <div class="v-body">
         <div class="v-top">
@@ -496,19 +600,14 @@ function renderGrid() {
         </div>
         <div class="v-area">${v.area}</div>
         <div class="v-tags">${v.tags}</div>
-        <div class="v-price"><b>${priceLabel}</b> ${priceSuffix}${compare ? "" : ` <span class="v-cta">View and book →</span>`}</div>
+        <div class="v-price"><b>${priceLabel}</b> ${priceSuffix}</div>
       </div>`;
     card.querySelector(".v-photo").style.animationDelay = delay; // sync the flash to the pop
-    if (compare) {
-      card.addEventListener("click", () => toggleVenue(v.id, card));
-    } else {
-      card.addEventListener("click", () => openVenue(v.id));
-    }
+    card.addEventListener("click", () => toggleVenue(v.id, card));
     grid.appendChild(card);
   });
 
-  if (compare) updateSendbar();
-  renderDealStrip();
+  updateSendbar();
 }
 
 // deal strip: cheapest nights in your dates, or the next 4 weeks (ported from Emmett's PR #2)
@@ -564,6 +663,7 @@ function pickNight(iso) {
   }
   syncWhenLabel();
   renderRangeCal();
+  if (state.mode === "book") renderRows(); // card prices follow the picked night
   renderDealStrip();
   toast(`${fmtDate(iso)} picked. Open a venue to book it.`);
 }
@@ -846,6 +946,20 @@ function bindReqModal() {
   $("reqClose").addEventListener("click", () => $("reqBackdrop").classList.add("hidden"));
   $("reqBackdrop").addEventListener("click", (e) => { if (e.target === $("reqBackdrop")) $("reqBackdrop").classList.add("hidden"); });
   $("reqSubmit").addEventListener("click", submitBooking);
+
+  // LED sign: canned "AI" suggestions in the demo (production: a small Claude call)
+  $("signSuggest").addEventListener("click", () => {
+    const lines = suggestSigns(state.occasion, $("signName").value);
+    const box = $("signChips");
+    box.innerHTML = lines.map((l) => `<button type="button" class="chip" data-sign="${l}">${l}</button>`).join("");
+    box.classList.remove("hidden");
+    box.querySelectorAll(".chip").forEach((c) =>
+      c.addEventListener("click", () => {
+        $("signText").value = c.dataset.sign;
+        box.querySelectorAll(".chip").forEach((x) => x.classList.toggle("active", x === c));
+      })
+    );
+  });
 }
 
 function openReqModal() {
@@ -862,6 +976,11 @@ function openReqModal() {
     <div class="bline"><span>Includes</span><b>${p.includes.join("<br>")}</b></div>
     <div class="bline total"><span>Deposit to hold</span><b>${usd.format(deposit)}</b></div>`;
   $("reqDep").textContent = usd.format(deposit);
+  $("signCost").textContent = p.sign === "included" ? "Included with this package" : `+${usd.format(SIGN_PRICE)}, billed at the venue`;
+  $("signText").value = "";
+  $("signName").value = "";
+  $("signChips").innerHTML = "";
+  $("signChips").classList.add("hidden");
   $("reqBackdrop").classList.remove("hidden");
 }
 
@@ -869,17 +988,28 @@ function submitBooking() {
   const cb = currentBooking();
   if (!cb) return;
   const { v, p, addons, total, deposit } = cb;
+  const signText = $("signText").value.trim();
   state.booking = {
     venueId: v.id,
     venueName: v.name,
     pkg: p,
     addons,
+    sign: signText ? { text: signText, price: p.sign === "included" ? 0 : SIGN_PRICE } : null,
     date: state.date,
     time: state.time,
     party: state.party,
     occasion: state.occasion,
     price: total,
     deposit: deposit,
+    // split the deposit: organizer-guarantee model, never all-or-nothing.
+    // Your card covers the full deposit; friends chip in by link; anything
+    // unpaid at the cutoff stays on your card. Real version: Stripe, Phase 3.
+    split: {
+      code: Math.random().toString(36).slice(2, 6).toUpperCase(),
+      target: deposit,
+      collected: 0,
+      parts: [],
+    },
     status: "pending",
     code: "BK-ORL-" + Math.random().toString(36).slice(2, 6).toUpperCase(),
     at: Date.now(),
@@ -904,9 +1034,11 @@ function renderPending() {
       : `${b.venueName} is reviewing your request. They will approve or decline shortly.`}</p>
     <div class="pending-lines">
       <div class="bline"><span>${b.pkg.name}${bookingAddonsLabel(b)}</span><b>${usd.format(b.price)}</b></div>
+      ${signLine(b)}
       <div class="bline"><span>${b.pkg.type === "buyout" ? "Full venue" : "Table"} · ${b.party} people · ${b.occasion}</span><b>${fmtDate(b.date)} · ${b.time}</b></div>
       <div class="bline total"><span>Deposit ${declined ? "released" : "held"}</span><b>${usd.format(b.deposit)}</b></div>
     </div>
+    ${declined ? "" : `<div id="splitPending"></div>`}
     ${declined
       ? `<button class="btn-primary btn-big" id="pendingRetry">Back to venues</button>`
       : `<div class="pending-live"><span class="pulse-dot"></span> Waiting on the venue…</div>
@@ -916,7 +1048,61 @@ function renderPending() {
     $("pendingRetry").addEventListener("click", resetCustomer);
   } else {
     $("pendingVenueSide").addEventListener("click", enterPromoterHome);
+    renderSplit($("splitPending"));
   }
+}
+
+// one bline describing the LED sign on a stored booking
+function signLine(b) {
+  if (!b.sign) return "";
+  const cost = b.sign.price ? `+${usd.format(b.sign.price)} at the venue` : "included";
+  return `<div class="bline"><span>LED sign: "${b.sign.text}"</span><b>${cost}</b></div>`;
+}
+
+/* ---- split the deposit (simulated organizer-guarantee model) ---- */
+
+const FRIEND_POOL = ["Alex", "Jordan", "Sam", "Riley", "Casey", "Dana", "Jesse", "Morgan"];
+
+function splitChipIn() {
+  const b = state.booking;
+  if (!b || !b.split) return;
+  const s = b.split;
+  const remaining = s.target - s.collected;
+  if (remaining <= 0) return;
+  const share = Math.max(5, roundTo(s.target / Math.min(Math.max(b.party, 2), 8), 5));
+  const name = FRIEND_POOL[s.parts.length % FRIEND_POOL.length];
+  const amount = Math.min(share, remaining);
+  s.parts.push({ name, amount });
+  s.collected += amount;
+}
+
+function renderSplit(el) {
+  const b = state.booking;
+  if (!el || !b || !b.split) return;
+  const s = b.split;
+  const pct = Math.min(100, Math.round((s.collected / s.target) * 100));
+  const remaining = Math.max(0, s.target - s.collected);
+  el.innerHTML = `
+    <div class="split">
+      <div class="split-head">
+        <b>Split the deposit</b>
+        <span class="split-link">bkout.app/s/${s.code}</span>
+        <button type="button" class="chip split-copy">Copy link</button>
+      </div>
+      <div class="split-bar"><i style="width:${pct}%"></i></div>
+      <div class="split-meta">${usd.format(s.collected)} of ${usd.format(s.target)} chipped in${s.parts.length ? ` · ${s.parts.length} friend${s.parts.length > 1 ? "s" : ""}` : ""}</div>
+      ${s.parts.map((p) => `<div class="split-row"><span>${p.name} paid by link</span><b>${usd.format(p.amount)}</b></div>`).join("")}
+      <button type="button" class="btn-line split-sim" ${remaining <= 0 ? "disabled" : ""}>${remaining <= 0 ? "Fully covered by friends" : "Simulate a friend chipping in"}</button>
+      <p class="split-fine">Never all-or-nothing: your card guarantees the full deposit, friends chip in by link, and whatever's unpaid at the cutoff (24h before your night) just stays on your card. Friends' shares are credited back to you. <em>(Simulated; real version is Stripe, Phase 3.)</em></p>
+    </div>`;
+  el.querySelector(".split-copy").addEventListener("click", () => {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(`https://bkout.app/s/${s.code}`);
+    toast("Split link copied. Send it to the group chat.");
+  });
+  el.querySelector(".split-sim").addEventListener("click", () => {
+    splitChipIn();
+    renderSplit(el);
+  });
 }
 
 let pendingPoll = null;
@@ -944,8 +1130,10 @@ function renderBookingConfirm() {
   $("confirmLines").innerHTML = `
     <div class="bline"><span>${b.pkg.name}${bookingAddonsLabel(b)}</span><b>${usd.format(b.price)}</b></div>
     ${(b.addons || []).map((a) => `<div class="bline"><span>Added: ${a.qty}× ${a.name}</span><b>${usd.format(a.line)}</b></div>`).join("")}
+    ${signLine(b)}
     <div class="bline"><span>${b.pkg.type === "buyout" ? "Full venue" : "Table"} · ${b.party} people · ${b.occasion}</span><b>${fmtDate(b.date)} · ${b.time}</b></div>
     <div class="bline total"><span>Deposit paid (credited to bill)</span><b>${usd.format(b.deposit)}</b></div>`;
+  renderSplit($("splitConfirm"));
 }
 
 // short "+ 2 tables" suffix for a stored booking's package line
@@ -1427,6 +1615,7 @@ function buildPRequests() {
       date: fmtDate(b.date), time: b.time, occasion: b.occasion,
       price: b.price, deposit: b.deposit,
       addons: b.addons || [],
+      sign: b.sign || null,
       status: b.status === "pending" ? "open" : b.status, // open | confirmed | declined
       isNew: true,
     });
@@ -1434,7 +1623,8 @@ function buildPRequests() {
   list.push(
     { id: "s1", title: "Full venue buyout", type: "buyout", party: 120, date: "Sat, Aug 22", time: "10:00 PM", occasion: "Corporate", price: 17000, deposit: 3550,
       addons: [{ name: "VIP booth", qty: 2, each: 1500, line: 3000 }], status: "open", isNew: true },
-    { id: "s2", title: "VIP booth", type: "table", party: 10, date: "Fri, Aug 14", time: "11:00 PM", occasion: "Bachelor / bachelorette", price: 1500, deposit: 375, status: "open", isNew: false },
+    { id: "s2", title: "VIP booth", type: "table", party: 10, date: "Fri, Aug 14", time: "11:00 PM", occasion: "Bachelor / bachelorette", price: 1500, deposit: 375,
+      sign: { text: "Nick's Last Dance", price: 0 }, status: "open", isNew: false },
   );
   PROMOTER.requests = list;
 }
@@ -1483,6 +1673,7 @@ function pReqCard(r) {
       <div><small>Occasion</small><b>${r.occasion}</b></div>
       <div><small>Price</small><b>${usd.format(r.price)} · dep ${usd.format(r.deposit)}</b></div>
       ${r.addons && r.addons.length ? `<div><small>Added tables</small><b>${r.addons.map((a) => `${a.qty}× ${a.name}`).join(", ")}</b></div>` : ""}
+      ${r.sign ? `<div><small>LED sign</small><b>"${r.sign.text}"${r.sign.price ? ` (+${usd.format(r.sign.price)})` : ""}</b></div>` : ""}
     </div>`;
 
   let foot;
@@ -1544,7 +1735,7 @@ function bindCity() {
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".city-field")) $("citySuggest").classList.add("hidden");
   });
-  $("cityChip").addEventListener("click", () => showScreen("city"));
+  $("segWhere").addEventListener("click", () => showScreen("city")); // Where opens the city picker
 }
 
 function matchCity(c, q) {
@@ -1579,7 +1770,7 @@ function chooseCity(c) {
   state.city = c.name.split(",")[0];
   $("citySuggest").classList.add("hidden");
   $("cityInput").value = c.name;
-  $("cityChip").textContent = `${state.city} · change city`;
+  $("whereText").textContent = c.name;
   renderGrid();
   showScreen("browse");
 }
