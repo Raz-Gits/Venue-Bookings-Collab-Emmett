@@ -610,24 +610,28 @@ body {
 .vd-deals-head span { font-size: 0.82rem; color: var(--muted); }
 .vd-cal { max-width: 560px; }
 
-/* ---------- shared calendar ---------- */
-.cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.cal-nav b { font-size: 1rem; font-weight: 700; color: var(--ink); }
-.cal-arrow { width: 32px; height: 32px; border-radius: var(--r-full); border: 1px solid var(--hairline); background: var(--canvas); font-size: 1.15rem; line-height: 1; color: var(--ink); cursor: pointer; display: grid; place-items: center; transition: border-color 0.15s; }
-.cal-arrow:hover:not(:disabled) { border-color: var(--border-strong); }
+/* ---------- shared calendar (restyled to match the React Aria calendar port) ---------- */
+.cal-nav { display: flex; align-items: center; gap: 4px; margin-bottom: 10px; }
+.cal-nav b { flex: 1; text-align: center; font-size: 0.95rem; font-weight: 600; color: var(--ink); }
+.cal-arrow { width: 36px; height: 36px; border-radius: var(--r-sm); border: 0; background: none; line-height: 1; color: var(--muted); cursor: pointer; display: grid; place-items: center; transition: background 0.15s, color 0.15s; }
+.cal-arrow svg { display: block; }
+.cal-arrow:hover:not(:disabled) { background: var(--surface-soft); color: var(--ink); }
 .cal-arrow:disabled { opacity: 0.3; cursor: default; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.cal-dow { margin-bottom: 6px; }
-.cal-dow span { text-align: center; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); }
-.cal-cell { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; aspect-ratio: 1 / 1; padding: 2px; border: 1px solid transparent; border-radius: var(--r-sm); background: none; font-family: var(--font); cursor: pointer; transition: border-color 0.12s, background 0.12s; }
+.cal-dow { margin-bottom: 2px; }
+.cal-dow span { text-align: center; font-size: 0.72rem; font-weight: 500; color: var(--muted-soft); }
+.cal-cell { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; aspect-ratio: 1 / 1; padding: 2px; border: 1px solid transparent; border-radius: var(--r-sm); background: none; font-family: var(--font); cursor: pointer; transition: color 0.15s, background-color 0.15s, border-color 0.15s, border-radius 0.15s; }
 .cal-cell.empty { border: 0; cursor: default; }
-.cal-cell.past { cursor: default; opacity: 0.45; }
+.cal-cell.past { cursor: default; opacity: 0.3; }
 .cal-cell.priced { aspect-ratio: auto; min-height: 62px; }
 .cal-num { font-size: 0.9rem; font-weight: 600; color: var(--ink); }
 .cal-cell.past .cal-num { font-weight: 400; color: var(--muted-soft); }
 .cal-price { font-size: 0.66rem; color: var(--muted); }
-.cal-cell:hover:not(.past):not(.empty):not(.is-picked) { border-color: var(--border-strong); }
+.cal-cell:hover:not(.past):not(.empty):not(.is-picked) { background: var(--surface-soft); }
+.cal-cell.in-range:not(.is-picked) { background: var(--surface-soft); }
 .cal-cell.is-deal { border-color: var(--rausch); }
+.cal-cell.is-today::after { content: ""; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 3px; height: 3px; border-radius: 50%; background: var(--ink); }
+.cal-cell.is-today.is-picked::after { background: #fff; }
 .cal-cell.is-picked { background: var(--ink); }
 .cal-cell.is-picked .cal-num, .cal-cell.is-picked .cal-price { color: #fff; }
 .cal-cell.is-picked .cal-dot { display: none; }
@@ -638,6 +642,85 @@ body {
 .cal-tag { font-size: 0.56rem; font-weight: 700; letter-spacing: 0.02em; color: var(--rausch); background: var(--rausch-disabled); border-radius: var(--r-full); padding: 1px 6px; }
 .cal-cell.is-picked .cal-tag { color: var(--ink); background: #fff; }
 @media (max-width: 560px) { .cal-cell.priced { min-height: 54px; } .cal-price { font-size: 0.6rem; } }
+
+/* ---------- When range picker (ported from the React Aria RangeCalendar component) ---------- */
+.when-wrap { position: relative; }
+button.when-pill { background: var(--canvas); cursor: pointer; font-family: var(--font); }
+.when-pill em { font-style: normal; font-size: 0.85rem; color: var(--body); font-weight: 500; }
+.when-pop {
+  position: absolute; top: calc(100% + 10px); left: 0; z-index: 60;
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  padding: 12px;
+  width: max-content;
+  animation: rise 0.2s both;
+}
+.when-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--hairline-soft); }
+.when-foot .btn-primary { padding: 9px 18px; font-size: 0.88rem; }
+
+.rc { width: fit-content; }
+.rc-head { display: flex; align-items: center; gap: 4px; padding-bottom: 4px; }
+.rc-title { flex: 1; text-align: center; font-size: 0.9rem; font-weight: 600; color: var(--ink); }
+.rc-nav {
+  width: 36px; height: 36px; display: grid; place-items: center;
+  background: none; border: 0; border-radius: var(--r-sm);
+  color: var(--muted); cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.rc-nav:hover:not(:disabled) { background: var(--surface-soft); color: var(--ink); }
+.rc-nav:disabled { opacity: 0.3; cursor: default; }
+.rc-nav svg { display: block; }
+.rc-grid { display: grid; grid-template-columns: repeat(7, 36px); }
+.rc-dow span { height: 32px; display: grid; place-items: center; font-size: 0.72rem; font-weight: 500; color: var(--muted-soft); }
+.rc-cell {
+  position: relative;
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  font-family: var(--font); font-size: 0.85rem; font-weight: 400; color: var(--ink);
+  background: none; border: 1px solid transparent; border-radius: var(--r-sm);
+  cursor: pointer; padding: 0;
+  transition: color 0.15s, background-color 0.15s, border-radius 0.15s, box-shadow 0.15s;
+}
+.rc-cell.empty, .rc-cell.disabled { pointer-events: none; }
+.rc-cell.disabled { opacity: 0.3; }
+.rc-cell:hover:not(.sel):not(.mid) { background: var(--surface-soft); }
+.rc-cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; z-index: 1; }
+.rc-cell.sel { background: var(--ink); color: #fff; }
+.rc-cell.sel.capped.start { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.rc-cell.sel.capped.end { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.rc-cell.mid { background: var(--surface-soft); border-radius: 0; }
+.rc-cell.today::after {
+  content: ""; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+  width: 3px; height: 3px; border-radius: 50%; background: var(--ink);
+}
+.rc-cell.today.sel::after { background: #fff; }
+@media (max-width: 560px) {
+  .when-pop { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+}
+
+/* ---------- add tables to a buyout ---------- */
+.vd-addons { margin-top: 26px; border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 18px; }
+.vd-addons-head h3 { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.02em; }
+.vd-addons-head span { display: block; font-size: 0.82rem; color: var(--muted); margin: 3px 0 6px; }
+.addon { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--hairline-soft); }
+.addon:last-child { border-bottom: 0; padding-bottom: 0; }
+.addon-main b { font-weight: 600; font-size: 0.95rem; display: block; }
+.addon-main span { font-size: 0.82rem; color: var(--muted); }
+.stepper { display: flex; align-items: center; gap: 12px; }
+.step-btn {
+  width: 32px; height: 32px; display: grid; place-items: center;
+  font-family: var(--font); font-size: 1.05rem; line-height: 1; color: var(--ink);
+  background: var(--canvas); border: 1px solid var(--border-strong); border-radius: 50%;
+  cursor: pointer; transition: border-color 0.15s, opacity 0.15s;
+}
+.step-btn:hover:not(:disabled) { border-color: var(--ink); }
+.step-btn:disabled { opacity: 0.3; cursor: default; }
+.step-qty { min-width: 18px; text-align: center; font-weight: 600; }
+
+/* temp real-photo credit line */
+.vd-photo-credit { margin-top: 8px; font-size: 0.72rem; color: var(--muted-soft); }
 
 /* ---------- deal strip ---------- */
 .deal-strip { margin: 8px 0 26px; animation: rise 0.5s 0.2s both; }

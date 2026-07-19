@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BookOut · Airbnb-look preview (design spike)</title>
+<meta name="robots" content="noindex" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◈</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   DESIGN SPIKE ONLY. A closer copy of the Airbnb home look
+   (search pill + photo-first card carousels) so Raz can compare
+   against the current app. Nothing here ships to the real app
+   unless we decide to adopt it. Data + pricing helpers are
+   duplicated from app.js on purpose; this page stands alone.
+   ============================================================ */
+:root {
+  --canvas: #ffffff; --surface-soft: #f7f7f7; --surface-strong: #f2f2f2;
+  --ink: #222222; --body: #3f3f3f; --muted: #6a6a6a; --muted-soft: #929292;
+  --rausch: #ff385c; --rausch-active: #e00b41;
+  --hairline: #dddddd; --hairline-soft: #ebebeb; --border-strong: #c1c1c1;
+  --r-sm: 8px; --r-md: 16px; --r-full: 9999px;
+  --shadow: rgba(0,0,0,0.02) 0 0 0 1px, rgba(0,0,0,0.04) 0 2px 6px 0, rgba(0,0,0,0.1) 0 4px 8px 0;
+  --shadow-lg: rgba(0,0,0,0.04) 0 0 0 1px, rgba(0,0,0,0.12) 0 6px 20px 0;
+  --font: "Inter", -apple-system, system-ui, "Helvetica Neue", sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--canvas); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5; letter-spacing: -0.01em; -webkit-font-smoothing: antialiased; }
+
+/* top bar */
+.topbar { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 72px; padding: 0 clamp(16px, 4vw, 44px); background: var(--canvas); border-bottom: 1px solid var(--hairline-soft); }
+.logo { font-weight: 800; font-size: 1.4rem; letter-spacing: -0.03em; color: var(--rausch); }
+.logo i { font-style: normal; font-size: 1.05rem; }
+.preview-chip { font-size: 0.74rem; font-weight: 600; color: var(--muted); border: 1px solid var(--hairline); border-radius: var(--r-full); padding: 7px 14px; white-space: nowrap; }
+.back-app { font-size: 0.88rem; font-weight: 600; color: var(--ink); text-decoration: underline; }
+.back-app:hover { color: var(--rausch); }
+
+/* the search pill */
+.search-zone { padding: 26px clamp(16px, 4vw, 44px) 34px; border-bottom: 1px solid var(--hairline-soft); background: var(--surface-soft); }
+.search-pill {
+  position: relative;
+  display: flex; align-items: stretch;
+  width: min(880px, 100%); margin: 0 auto;
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-full);
+  box-shadow: var(--shadow);
+}
+.seg { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 1px; text-align: left; padding: 13px 26px; background: none; border: 0; border-radius: var(--r-full); font-family: var(--font); cursor: pointer; min-width: 0; }
+.seg:hover { background: var(--surface-strong); }
+.seg b { font-size: 0.8rem; font-weight: 600; color: var(--ink); }
+.seg span { font-size: 0.9rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seg span.setv { color: var(--ink); font-weight: 500; }
+.seg-div { width: 1px; background: var(--hairline-soft); margin: 12px 0; }
+.search-go {
+  align-self: center;
+  width: 52px; height: 52px; margin: 6px 8px 6px 4px; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--rausch); color: #fff; border: 0; border-radius: 50%;
+  cursor: pointer; transition: background 0.15s, transform 0.1s;
+}
+.search-go:hover { background: var(--rausch-active); }
+.search-go:active { transform: scale(0.95); }
+.search-go svg { width: 20px; height: 20px; }
+
+/* popovers on the pill */
+.pop { position: absolute; top: calc(100% + 12px); z-index: 60; background: var(--canvas); border: 1px solid var(--hairline); border-radius: var(--r-md); box-shadow: var(--shadow-lg); padding: 14px; animation: rise 0.18s both; }
+.pop.hidden { display: none; }
+#popWhen { left: 50%; transform: translateX(-50%); }
+#popWho { right: 8px; width: 300px; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
+#popWhen.pop { transform: translateX(-50%); }
+@media (max-width: 700px) {
+  .seg { padding: 11px 16px; }
+  #popWhen { left: 0; transform: none; }
+}
+.pop-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--hairline-soft); }
+.btn-textlink { font-family: var(--font); font-weight: 600; font-size: 0.88rem; color: var(--ink); background: none; border: 0; cursor: pointer; text-decoration: underline; }
+.btn-mini { font-family: var(--font); font-weight: 600; font-size: 0.86rem; color: #fff; background: var(--rausch); border: 0; border-radius: var(--r-sm); padding: 9px 18px; cursor: pointer; }
+.btn-mini:hover { background: var(--rausch-active); }
+
+/* who stepper */
+.who-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 6px 2px; }
+.who-row b { font-size: 0.92rem; font-weight: 600; }
+.who-row small { display: block; color: var(--muted); font-weight: 400; font-size: 0.78rem; }
+.stepper { display: flex; align-items: center; gap: 12px; }
+.step-btn { width: 32px; height: 32px; display: grid; place-items: center; font-family: var(--font); font-size: 1.05rem; line-height: 1; color: var(--ink); background: var(--canvas); border: 1px solid var(--border-strong); border-radius: 50%; cursor: pointer; }
+.step-btn:hover:not(:disabled) { border-color: var(--ink); }
+.step-btn:disabled { opacity: 0.3; cursor: default; }
+.step-qty { min-width: 22px; text-align: center; font-weight: 600; }
+
+/* range calendar (same port of the React Aria RangeCalendar as the app) */
+.rc { width: fit-content; }
+.rc-head { display: flex; align-items: center; gap: 4px; padding-bottom: 4px; }
+.rc-title { flex: 1; text-align: center; font-size: 0.9rem; font-weight: 600; color: var(--ink); }
+.rc-nav { width: 36px; height: 36px; display: grid; place-items: center; background: none; border: 0; border-radius: var(--r-sm); color: var(--muted); cursor: pointer; transition: background 0.15s, color 0.15s; }
+.rc-nav:hover:not(:disabled) { background: var(--surface-soft); color: var(--ink); }
+.rc-nav:disabled { opacity: 0.3; cursor: default; }
+.rc-nav svg { display: block; }
+.rc-grid { display: grid; grid-template-columns: repeat(7, 36px); }
+.rc-dow span { height: 32px; display: grid; place-items: center; font-size: 0.72rem; font-weight: 500; color: var(--muted-soft); }
+.rc-cell { position: relative; width: 36px; height: 36px; display: grid; place-items: center; font-family: var(--font); font-size: 0.85rem; color: var(--ink); background: none; border: 1px solid transparent; border-radius: var(--r-sm); cursor: pointer; padding: 0; transition: color 0.15s, background-color 0.15s, border-radius 0.15s; }
+.rc-cell.empty, .rc-cell.disabled { pointer-events: none; }
+.rc-cell.disabled { opacity: 0.3; }
+.rc-cell:hover:not(.sel):not(.mid) { background: var(--surface-soft); }
+.rc-cell.sel { background: var(--ink); color: #fff; }
+.rc-cell.sel.capped.start { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.rc-cell.sel.capped.end { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.rc-cell.mid { background: var(--surface-soft); border-radius: 0; }
+.rc-cell.today::after { content: ""; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 3px; height: 3px; border-radius: 50%; background: var(--ink); }
+.rc-cell.today.sel::after { background: #fff; }
+
+/* card rows */
+main { max-width: 1560px; margin: 0 auto; padding: 10px clamp(16px, 4vw, 44px) 60px; }
+.row { margin-top: 34px; }
+.row-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.row-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.35rem; letter-spacing: -0.02em; color: var(--ink); text-decoration: none; }
+.row-title svg { width: 16px; height: 16px; margin-top: 2px; }
+.row-nav { margin-left: auto; display: flex; gap: 8px; }
+.row-nav button { width: 32px; height: 32px; display: grid; place-items: center; background: var(--surface-soft); border: 1px solid var(--hairline-soft); border-radius: 50%; color: var(--ink); cursor: pointer; transition: box-shadow 0.15s, background 0.15s; }
+.row-nav button:hover { background: var(--canvas); box-shadow: var(--shadow); }
+.row-nav svg { width: 14px; height: 14px; }
+.cards { display: flex; gap: 14px; overflow-x: auto; scroll-behavior: smooth; padding-bottom: 10px; scrollbar-width: none; }
+.cards::-webkit-scrollbar { display: none; }
+.pcard { flex: 0 0 236px; cursor: pointer; }
+.pcard-photo { position: relative; aspect-ratio: 1 / 1; border-radius: var(--r-md); overflow: hidden; background-size: cover; background-position: center; }
+.pcard-fav { position: absolute; top: 12px; left: 12px; font-size: 0.74rem; font-weight: 600; color: var(--ink); background: var(--canvas); border-radius: var(--r-full); padding: 5px 10px; box-shadow: var(--shadow); }
+.pcard-heart { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; display: grid; place-items: center; background: none; border: 0; cursor: pointer; padding: 0; }
+.pcard-heart svg { width: 24px; height: 24px; fill: rgba(0,0,0,0.5); stroke: #fff; stroke-width: 2; transition: fill 0.15s, transform 0.12s; }
+.pcard-heart.on svg { fill: var(--rausch); }
+.pcard-heart:active svg { transform: scale(0.85); }
+.pcard-glyph { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 800; font-size: 2.6rem; color: rgba(255,255,255,0.9); text-shadow: 0 2px 20px rgba(0,0,0,0.25); }
+.pcard-name { margin-top: 10px; font-weight: 600; font-size: 0.94rem; }
+.pcard-sub { color: var(--muted); font-size: 0.92rem; }
+.pcard-sub .star { display: inline-block; width: 11px; height: 11px; fill: var(--muted); vertical-align: -1px; }
+
+/* footer note */
+.note { margin: 46px auto 0; max-width: 860px; padding: 16px 20px; border: 1px solid var(--hairline-soft); border-radius: var(--r-md); background: var(--surface-soft); color: var(--muted); font-size: 0.84rem; line-height: 1.6; }
+.note b { color: var(--ink); }
+.note a { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="logo">bookout<i>◈</i></div>
+  <span class="preview-chip">Design preview · the live app is unchanged</span>
+  <a class="back-app" href="index.html">Open the app →</a>
+</header>
+
+<div class="search-zone">
+  <div class="search-pill" id="searchPill">
+    <button type="button" class="seg" id="segWhere">
+      <b>Where</b><span class="setv">Orlando, FL</span>
+    </button>
+    <div class="seg-div"></div>
+    <button type="button" class="seg" id="segWhen">
+      <b>When</b><span id="whenText">Add dates</span>
+    </button>
+    <div class="seg-div"></div>
+    <button type="button" class="seg" id="segWho">
+      <b>Who</b><span id="whoText">Add guests</span>
+    </button>
+    <button type="button" class="search-go" id="btnGo" aria-label="Search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+    </button>
+
+    <div class="pop hidden" id="popWhen" role="dialog" aria-label="Choose your dates">
+      <div class="rc" id="rcCal"></div>
+      <div class="pop-foot">
+        <button type="button" class="btn-textlink" id="whenClear">Clear</button>
+        <button type="button" class="btn-mini" id="whenDone">Done</button>
+      </div>
+    </div>
+
+    <div class="pop hidden" id="popWho" role="dialog" aria-label="How many guests">
+      <div class="who-row">
+        <div><b>Guests</b><small>Your whole group</small></div>
+        <div class="stepper">
+          <button type="button" class="step-btn" id="whoMinus">-</button>
+          <b class="step-qty" id="whoQty">8</b>
+          <button type="button" class="step-btn" id="whoPlus">+</button>
+        </div>
+      </div>
+      <div class="pop-foot">
+        <span></span>
+        <button type="button" class="btn-mini" id="whoDone">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main>
+  <section class="row">
+    <div class="row-head">
+      <a class="row-title" href="#">Popular venues in Orlando
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <div class="row-nav">
+        <button type="button" data-scroll="-1" data-row="rowTables" aria-label="Scroll back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button type="button" data-scroll="1" data-row="rowTables" aria-label="Scroll forward"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>
+    <div class="cards" id="rowTables"></div>
+  </section>
+
+  <section class="row">
+    <div class="row-head">
+      <a class="row-title" href="#">Full-venue buyouts
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <div class="row-nav">
+        <button type="button" data-scroll="-1" data-row="rowBuyouts" aria-label="Scroll back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button type="button" data-scroll="1" data-row="rowBuyouts" aria-label="Scroll forward"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>
+    <div class="cards" id="rowBuyouts"></div>
+  </section>
+
+  <p class="note">
+    <b>Design spike, not the product.</b> This page copies the Airbnb home layout (search pill, photo-first carousels) using our venues and pricing so we can judge it against the current browse screen. Three venues show temporary photos hotlinked from real Orlando clubs (The Beacham, Mango's Tropical Cafe, ICEBAR); they must be replaced with licensed photos before anything goes live. The real demo is at <a href="index.html">index.html</a> and is unchanged.
+  </p>
+</main>
+
+<script>
+"use strict";
+/* Design spike. Venue data + pricing helpers duplicated from app.js on
+   purpose so this page stands alone and never touches the real app. */
+
+const VENUES = [
+  { id: "neon",     name: "Neon Garden",     area: "Downtown",      band: [600, 1200],  buyout: [6000, 9000],   g: ["#ff7a5c", "#c2264d"], glyph: "N", rating: 4.92, fav: true },
+  { id: "velvet",   name: "Velvet Citrus",   area: "Thornton Park", band: [500, 900],   buyout: [4500, 7000],   g: ["#ffa53d", "#e0563b"], glyph: "V", rating: 4.85, fav: true },
+  { id: "gator",    name: "The Gilded Gator", area: "Downtown",      band: [450, 850],   buyout: [4000, 6500],   g: ["#c79a3f", "#6b4a1a"], glyph: "G", rating: 4.78, fav: false },
+  { id: "lumen",    name: "LUMEN",           area: "I-Drive",       band: [900, 2000],  buyout: [12000, 18000], g: ["#5b7bff", "#ff3d6e"], glyph: "L", rating: 4.71, fav: false },
+  { id: "static",   name: "Static Room",     area: "Mills 50",      band: [400, 800],   buyout: [3500, 6000],   g: ["#7a8199", "#2b3040"], glyph: "S", rating: 4.88, fav: true },
+  { id: "palma",    name: "Palma Social",    area: "Downtown",      band: [550, 1000],  buyout: [5000, 8000],   g: ["#ff8a4d", "#b02063"], glyph: "P", rating: 4.83, fav: false },
+  { id: "seven",    name: "Skyline SEVEN",   area: "Downtown",      band: [700, 1400],  buyout: [7000, 11000],  g: ["#3fd0c2", "#2a5b8f"], glyph: "7", rating: 4.95, fav: true },
+  { id: "wax",      name: "Basement Wax",    area: "Mills 50",      band: [300, 600],   buyout: [2500, 4500],   g: ["#e0563b", "#5c1f3a"], glyph: "W", rating: 4.90, fav: true },
+  { id: "meridian", name: "Club Meridian",   area: "I-Drive",       band: [800, 1600],  buyout: [9000, 14000],  g: ["#ffc23d", "#e0563b"], glyph: "M", rating: 4.76, fav: false },
+];
+
+// TEMP real photos, same three stand-ins as the app (see TEMP_REAL_PHOTOS in app.js)
+const PHOTOS = {
+  neon: "https://lirp.cdn-website.com/4eb3478d/dms3rep/multi/opt/beacham-home-hero-1-1920w.png",
+  palma: "https://cdn.prod.website-files.com/67ee7f2c25ba2cfc9ac41648/67ee7f2c25ba2cfc9ac41816_Mango_s-Orlando-dinner-8-3-2025-_smaller.avif",
+  meridian: "https://icebarorlando.com/bc/wp-content/uploads/home-hero-ice-landscape.png",
+};
+
+/* pricing (duplicated from app.js) */
+const roundTo = (n, step) => Math.round(n / step) * step;
+const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+function isoOf(dt) { const y = dt.getFullYear(), m = String(dt.getMonth() + 1).padStart(2, "0"), d = String(dt.getDate()).padStart(2, "0"); return `${y}-${m}-${d}`; }
+function weekWobble(iso) { const [y, m, d] = iso.split("-").map(Number); const wk = Math.floor(Date.UTC(y, m - 1, d) / (7 * 864e5)); const s = Math.sin(wk * 12.9898) * 43758.5453; return 0.94 + (s - Math.floor(s)) * 0.12; }
+function daysOut(iso) { const [y, m, d] = iso.split("-").map(Number); const n = new Date(); return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())) / 864e5); }
+function earlyBirdFactor(iso) { const out = daysOut(iso); return 1 - (out <= 0 ? 0 : Math.min(0.18, out * 0.006)); }
+function busyFactor(iso) { const [y, m, d] = iso.split("-").map(Number); const wd = new Date(y, m - 1, d).getDay(); const base = (wd === 5 || wd === 6) ? 1.28 : wd === 4 ? 1.08 : wd === 0 ? 1.00 : 0.82; return base * weekWobble(iso); }
+function demandFactor(iso) { return busyFactor(iso) * earlyBirdFactor(iso); }
+function priceFor(base, iso) { return roundTo(base * demandFactor(iso), 25); }
+function fmtShort(iso) { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" }); }
+
+const $ = (id) => document.getElementById(id);
+const nextSat = (() => { const d = new Date(); d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7)); return isoOf(d); })();
+const state = { start: null, end: null, guests: 8 };
+
+/* which night to price on the cards: your range start, else next Saturday */
+function cardNight() { return state.start || nextSat; }
+function nightWord() { const iso = cardNight(); const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short" }); }
+
+const star = `<svg class="star" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1l2.2 4.5 4.8.7-3.5 3.4.8 4.9L8 12.7 3.7 14.5l.8-4.9L1 6.2l4.8-.7z"/></svg>`;
+
+function card(v, type) {
+  const base = type === "buyout" ? v.buyout[0] : v.band[0];
+  const price = priceFor(base, cardNight());
+  const bg = PHOTOS[v.id]
+    ? `background-image:url('${PHOTOS[v.id]}'),linear-gradient(150deg,${v.g[0]},${v.g[1]})`
+    : `background-image:linear-gradient(150deg,${v.g[0]},${v.g[1]})`;
+  return `<article class="pcard">
+    <div class="pcard-photo" style="${bg}">
+      ${PHOTOS[v.id] ? "" : `<span class="pcard-glyph">${v.glyph}</span>`}
+      ${v.fav ? `<span class="pcard-fav">Guest favorite</span>` : ""}
+      <button type="button" class="pcard-heart" aria-label="Save ${v.name}"><svg viewBox="0 0 32 32"><path d="M16 28C7.9 22.7 3 17.9 3 12.4 3 8.3 6.3 5 10.4 5c2.4 0 4.6 1.1 6 2.9C17.7 6.1 19.9 5 22.3 5 26.4 5 29 8.3 29 12.4c0 5.5-4.9 10.3-13 15.6z"/></svg></button>
+    </div>
+    <div class="pcard-name">${type === "buyout" ? "Venue" : "Table"} at ${v.name} · ${v.area}</div>
+    <div class="pcard-sub">from ${usd.format(price)} for ${nightWord()} night · ${star} ${v.rating.toFixed(2)}</div>
+  </article>`;
+}
+
+function renderRows() {
+  $("rowTables").innerHTML = VENUES.map((v) => card(v, "table")).join("");
+  $("rowBuyouts").innerHTML = VENUES.map((v) => card(v, "buyout")).join("");
+  document.querySelectorAll(".pcard-heart").forEach((h) =>
+    h.addEventListener("click", (e) => { e.stopPropagation(); h.classList.toggle("on"); })
+  );
+}
+
+/* row scroll chevrons */
+document.querySelectorAll(".row-nav button").forEach((b) =>
+  b.addEventListener("click", () => {
+    const row = $(b.dataset.row);
+    row.scrollBy({ left: Number(b.dataset.scroll) * (row.clientWidth - 100), behavior: "smooth" });
+  })
+);
+
+/* popover plumbing */
+function toggle(pop, others) {
+  others.forEach((o) => $(o).classList.add("hidden"));
+  $(pop).classList.toggle("hidden");
+}
+$("segWhen").addEventListener("click", (e) => { e.stopPropagation(); toggle("popWhen", ["popWho"]); renderRC(); });
+$("segWho").addEventListener("click", (e) => { e.stopPropagation(); toggle("popWho", ["popWhen"]); });
+$("segWhere").addEventListener("click", () => {});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".search-pill")) { $("popWhen").classList.add("hidden"); $("popWho").classList.add("hidden"); }
+});
+$("popWhen").addEventListener("click", (e) => e.stopPropagation());
+$("popWho").addEventListener("click", (e) => e.stopPropagation());
+$("whenDone").addEventListener("click", () => $("popWhen").classList.add("hidden"));
+$("whoDone").addEventListener("click", () => $("popWho").classList.add("hidden"));
+$("whenClear").addEventListener("click", () => { state.start = null; state.end = null; syncWhen(); renderRC(); renderRows(); });
+
+$("whoMinus").addEventListener("click", () => { state.guests = Math.max(1, state.guests - 1); syncWho(); });
+$("whoPlus").addEventListener("click", () => { state.guests = Math.min(2000, state.guests + 1); syncWho(); });
+function syncWho() { $("whoQty").textContent = state.guests; $("whoText").textContent = `${state.guests} guests`; $("whoText").classList.add("setv"); }
+
+function syncWhen() {
+  const t = $("whenText");
+  t.classList.toggle("setv", !!state.start);
+  t.textContent = !state.start ? "Add dates"
+    : !state.end ? `${fmtShort(state.start)} · pick an end`
+    : state.start === state.end ? fmtShort(state.start)
+    : `${fmtShort(state.start)} to ${fmtShort(state.end)}`;
+}
+
+$("btnGo").addEventListener("click", () => {
+  document.querySelector(".row").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+/* range calendar (same port of the React Aria RangeCalendar as app.js) */
+const DOW_NARROW = ["S", "M", "T", "W", "T", "F", "S"];
+const CHEV_L = `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M10 3L5.5 8 10 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const CHEV_R = `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M6 3l4.5 5L6 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+let rcY, rcM;
+{ const t = new Date(); rcY = t.getFullYear(); rcM = t.getMonth(); }
+
+function renderRC() {
+  const el = $("rcCal");
+  const todayIso = isoOf(new Date());
+  const startWd = new Date(rcY, rcM, 1).getDay();
+  const days = new Date(rcY, rcM + 1, 0).getDate();
+  const n = new Date();
+  const atMin = rcY < n.getFullYear() || (rcY === n.getFullYear() && rcM <= n.getMonth());
+  const atMax = new Date(rcY, rcM, 1) >= new Date(n.getFullYear(), n.getMonth() + 6, 1);
+
+  let cells = "";
+  for (let i = 0; i < startWd; i++) cells += `<span class="rc-cell empty"></span>`;
+  for (let d = 1; d <= days; d++) {
+    const iso = isoOf(new Date(rcY, rcM, d));
+    const past = iso < todayIso;
+    const isStart = state.start === iso, isEnd = state.end === iso;
+    const capped = state.start && state.end && state.start !== state.end;
+    const cls = ["rc-cell", past ? "disabled" : "",
+      isStart || isEnd ? "sel" : "", isStart ? "start" : "", isEnd ? "end" : "",
+      capped && (isStart || isEnd) ? "capped" : "",
+      state.start && state.end && iso > state.start && iso < state.end ? "mid" : "",
+      iso === todayIso ? "today" : ""].filter(Boolean).join(" ");
+    cells += past ? `<span class="${cls}">${d}</span>` : `<button type="button" class="${cls}" data-iso="${iso}">${d}</button>`;
+  }
+
+  el.innerHTML = `
+    <header class="rc-head">
+      <button type="button" class="rc-nav" data-rc="prev" ${atMin ? "disabled" : ""} aria-label="Previous month">${CHEV_L}</button>
+      <b class="rc-title">${new Date(rcY, rcM, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</b>
+      <button type="button" class="rc-nav" data-rc="next" ${atMax ? "disabled" : ""} aria-label="Next month">${CHEV_R}</button>
+    </header>
+    <div class="rc-grid rc-dow">${DOW_NARROW.map((x) => `<span>${x}</span>`).join("")}</div>
+    <div class="rc-grid">${cells}</div>`;
+
+  el.querySelector('[data-rc="prev"]').addEventListener("click", () => { rcM--; if (rcM < 0) { rcM = 11; rcY--; } renderRC(); });
+  el.querySelector('[data-rc="next"]').addEventListener("click", () => { rcM++; if (rcM > 11) { rcM = 0; rcY++; } renderRC(); });
+  el.querySelectorAll(".rc-cell[data-iso]").forEach((b) => b.addEventListener("click", () => {
+    const iso = b.dataset.iso;
+    if (!state.start || state.end) { state.start = iso; state.end = null; }
+    else if (iso < state.start) { state.start = iso; state.end = null; }
+    else { state.end = iso; }
+    syncWhen(); renderRC(); renderRows(); // card prices follow your dates
+  }));
+}
+
+renderRows();
+</script>
+</body>
+</html>

@@ -20,6 +20,57 @@ const VENUES = [
   { id: "meridian", name: "Club Meridian",    area: "I-Drive",       tags: "Bottle service · Go-go", band: [800, 1600],  buyout: [9000, 14000],  g: ["#ffc23d", "#e0563b"], glyph: "M", rating: 4.76, fav: false },
 ];
 
+/* ============================================================
+   TEMP REAL-VENUE PHOTOS · DEMO ONLY · REPLACE BEFORE LAUNCH
+   Hotlinked from these venues' own public sites purely so we can
+   judge how real photography looks in the UI. Not licensed for
+   production use and hotlinks can break at any time. PLAN.md's
+   launch checklist blocks going live until these are swapped for
+   our own licensed venue photos (with the venues' permission).
+   ============================================================ */
+const TEMP_REAL_PHOTOS = {
+  // The Beacham (downtown Orlando) standing in for Neon Garden
+  neon: {
+    credit: "The Beacham, Orlando",
+    shots: [
+      "https://lirp.cdn-website.com/4eb3478d/dms3rep/multi/opt/beacham-home-hero-1-1920w.png",
+      "https://lirp.cdn-website.com/4eb3478d/dms3rep/multi/opt/beacham-home-rental-1-1920w.png",
+      "https://lirp.cdn-website.com/4eb3478d/dms3rep/multi/opt/beacham-home-rental-2-1920w.png",
+    ],
+  },
+  // Mango's Tropical Cafe (I-Drive) standing in for Palma Social
+  palma: {
+    credit: "Mango's Tropical Cafe, Orlando",
+    shots: [
+      "https://cdn.prod.website-files.com/67ee7f2c25ba2cfc9ac41648/67ee7f2c25ba2cfc9ac41816_Mango_s-Orlando-dinner-8-3-2025-_smaller.avif",
+      "https://cdn.prod.website-files.com/67ee7f2c25ba2cfc9ac41648/67ee7f2c25ba2cfc9ac41812_Mango_s-Orlando-dinner-8-3-2025-(155-de-174).avif",
+      "https://cdn.prod.website-files.com/67ee7f2c25ba2cfc9ac41648/67ee7f2c25ba2cfc9ac41814_Mango_s-Orlando-Evento-Loreal-7-3-2025-(16-de-34).avif",
+      "https://cdn.prod.website-files.com/67ee7f2c25ba2cfc9ac41648/67ee7f2c25ba2cfc9ac41813_Mango_s-Orlando-dinner-8-3-2025-(144-de-174).avif",
+    ],
+  },
+  // ICEBAR Orlando (I-Drive) standing in for Club Meridian
+  meridian: {
+    credit: "ICEBAR Orlando",
+    shots: [
+      "https://icebarorlando.com/bc/wp-content/uploads/home-hero-ice-landscape.png",
+      "https://icebarorlando.com/bc/wp-content/uploads/home-corporate-events-img-1.jpg",
+      "https://icebarorlando.com/bc/wp-content/uploads/home-corporate-events-img-4.jpg",
+      "https://icebarorlando.com/bc/wp-content/uploads/home-corporate-events-img-6.jpg",
+    ],
+  },
+};
+
+function venuePhotos(v) { return TEMP_REAL_PHOTOS[v.id] || null; }
+
+// background style for a venue surface: real photo when we have one,
+// always with the brand gradient underneath as the loading/failure fallback
+function photoBg(v, i, angle) {
+  const grad = `linear-gradient(${angle || 150}deg,${v.g[0]},${v.g[1]})`;
+  const ph = venuePhotos(v);
+  const shot = ph && ph.shots[i % ph.shots.length];
+  return shot ? `background:url('${shot}') center/cover no-repeat, ${grad}` : `background:${grad}`;
+}
+
 const INCLUDES_POOL = [
   "Skip-the-line entry for all guests",
   "2 bottles + mixers included",
@@ -47,6 +98,8 @@ const state = {
   city: "Orlando",        // chosen on the entry screen
   mode: "book",           // "book" (request + venue approves) or "compare" (quote auction)
   type: "buyout",         // default tab: Venues (whole-venue buyout)
+  range: { start: null, end: null }, // the When picker's date range (null = anytime)
+  addons: {},             // tables added onto a buyout: pkgId -> qty
   date: "",
   time: "10:00 PM",
   party: 8,
@@ -97,8 +150,12 @@ function packageById(v, id) { return venuePackages(v).find((p) => p.id === id); 
    ============================================================ */
 
 const EARLY_BIRD_MAX = 0.18; // biggest early-bird discount, reached ~30 days out
-const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DOW_NARROW = ["S", "M", "T", "W", "T", "F", "S"]; // calendar header letters (React Aria style)
 const MONTHS_AHEAD = 6;
+
+// chevron icons for calendar navigation (ported from the React Aria calendar's header)
+const CHEV_L = `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M10 3L5.5 8 10 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const CHEV_R = `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M6 3l4.5 5L6 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 function isoOf(dt) {
   const y = dt.getFullYear();
@@ -169,11 +226,11 @@ function calAtMax(y, m) { const n = new Date(); return new Date(y, m, 1) >= new 
 function calShell(y, m, cells) {
   return `
     <div class="cal-nav">
-      <button type="button" class="cal-arrow" data-cal="prev" ${calAtMin(y, m) ? "disabled" : ""} aria-label="Previous month">‹</button>
+      <button type="button" class="cal-arrow" data-cal="prev" ${calAtMin(y, m) ? "disabled" : ""} aria-label="Previous month">${CHEV_L}</button>
       <b>${monthLabel(y, m)}</b>
-      <button type="button" class="cal-arrow" data-cal="next" ${calAtMax(y, m) ? "disabled" : ""} aria-label="Next month">›</button>
+      <button type="button" class="cal-arrow" data-cal="next" ${calAtMax(y, m) ? "disabled" : ""} aria-label="Next month">${CHEV_R}</button>
     </div>
-    <div class="cal-grid cal-dow">${DOW.map((d) => `<span>${d}</span>`).join("")}</div>
+    <div class="cal-grid cal-dow">${DOW_NARROW.map((d) => `<span>${d}</span>`).join("")}</div>
     <div class="cal-grid">${cells}</div>`;
 }
 
@@ -196,6 +253,10 @@ const roundTo = (n, step) => Math.round(n / step) * step;
   d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7)); // next Friday
   $("fDate").value = d.toISOString().slice(0, 10);
 
+  if (Object.keys(TEMP_REAL_PHOTOS).length) {
+    console.warn("BookOut: TEMP hotlinked venue photos in use (TEMP_REAL_PHOTOS in app.js). Replace with licensed photos before launch. See PLAN.md.");
+  }
+
   // spotlight glow: share pointer position with the cards via CSS vars on :root
   document.addEventListener("pointermove", (e) => {
     const r = document.documentElement.style;
@@ -205,6 +266,7 @@ const roundTo = (n, step) => Math.round(n / step) * step;
 
   bindCity();
   bindBrowse();
+  bindWhen();
   bindVenue();
   bindReqModal();
   bindBoard();
@@ -273,6 +335,117 @@ function matchedVenues() {
   return VENUES; // single city in the demo; all venues belong to the chosen city
 }
 
+/* ============================================================
+   When range picker
+   Look and selection behavior ported to vanilla JS from the
+   React Aria RangeCalendar (react-aria-components + origin-ui
+   styling) that Raz sent. Same rules: pick a start, pick an
+   end, earlier click restarts the range; past dates disabled;
+   today gets a dot; range middle squares off, ends stay round.
+   ============================================================ */
+
+let rcY = null, rcM = null; // month shown in the When popover (lazy: set on first render)
+
+function bindWhen() {
+  const pill = $("whenPill"), pop = $("whenPop");
+  const openPop = () => {
+    const seed = state.range.start || $("fDate").value || isoOf(new Date());
+    const [y, m] = seed.split("-").map(Number);
+    rcY = y; rcM = m - 1;
+    renderRangeCal();
+    pop.classList.remove("hidden");
+  };
+  pill.addEventListener("click", () => {
+    if (pop.classList.contains("hidden")) openPop(); else pop.classList.add("hidden");
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".when-wrap")) pop.classList.add("hidden");
+  });
+  $("whenClear").addEventListener("click", () => {
+    state.range = { start: null, end: null };
+    syncWhenLabel();
+    renderRangeCal();
+    renderDealStrip();
+  });
+  $("whenDone").addEventListener("click", () => pop.classList.add("hidden"));
+  syncWhenLabel();
+}
+
+function rcPick(iso) {
+  const r = state.range;
+  if (!r.start || r.end) state.range = { start: iso, end: null }; // fresh range
+  else if (iso < r.start) state.range = { start: iso, end: null }; // earlier click restarts
+  else state.range = { start: r.start, end: iso };                 // close the range (same day allowed)
+
+  // the working night follows the range: its start, or the cheapest night inside it
+  const nr = state.range;
+  state.date = nr.end ? cheapestNight(nr.start, nr.end) : nr.start;
+  $("fDate").value = state.date;
+
+  syncWhenLabel();
+  renderRangeCal();
+  renderDealStrip();
+}
+
+function syncWhenLabel() {
+  const r = state.range;
+  $("whenLabel").textContent = !r.start ? "Add dates"
+    : !r.end ? `${fmtShort(r.start)} · pick an end date`
+    : r.start === r.end ? fmtDate(r.start)
+    : `${fmtShort(r.start)} to ${fmtShort(r.end)}`;
+}
+
+function renderRangeCal() {
+  const el = $("rcCal");
+  if (!el) return;
+  if (rcY == null) { const t = new Date(); rcY = t.getFullYear(); rcM = t.getMonth(); }
+  const todayIso = isoOf(new Date());
+  const { startWd, days } = monthMeta(rcY, rcM);
+  const r = state.range;
+
+  let cells = "";
+  for (let i = 0; i < startWd; i++) cells += `<span class="rc-cell empty"></span>`;
+  for (let d = 1; d <= days; d++) {
+    const iso = isoOf(new Date(rcY, rcM, d));
+    const past = iso < todayIso;
+    const isStart = r.start === iso, isEnd = r.end === iso;
+    const capped = r.start && r.end && r.start !== r.end; // a real two-night range: square the joined edges
+    const cls = ["rc-cell",
+      past ? "disabled" : "",
+      isStart || isEnd ? "sel" : "",
+      isStart ? "start" : "", isEnd ? "end" : "",
+      capped && (isStart || isEnd) ? "capped" : "",
+      r.start && r.end && iso > r.start && iso < r.end ? "mid" : "",
+      iso === todayIso ? "today" : ""].filter(Boolean).join(" ");
+    cells += past
+      ? `<span class="${cls}">${d}</span>`
+      : `<button type="button" class="${cls}" data-iso="${iso}">${d}</button>`;
+  }
+
+  el.innerHTML = `
+    <header class="rc-head">
+      <button type="button" class="rc-nav" data-rc="prev" ${calAtMin(rcY, rcM) ? "disabled" : ""} aria-label="Previous month">${CHEV_L}</button>
+      <b class="rc-title">${monthLabel(rcY, rcM)}</b>
+      <button type="button" class="rc-nav" data-rc="next" ${calAtMax(rcY, rcM) ? "disabled" : ""} aria-label="Next month">${CHEV_R}</button>
+    </header>
+    <div class="rc-grid rc-dow">${DOW_NARROW.map((x) => `<span>${x}</span>`).join("")}</div>
+    <div class="rc-grid">${cells}</div>`;
+
+  el.querySelector('[data-rc="prev"]').addEventListener("click", () => { rcM--; if (rcM < 0) { rcM = 11; rcY--; } renderRangeCal(); });
+  el.querySelector('[data-rc="next"]').addEventListener("click", () => { rcM++; if (rcM > 11) { rcM = 0; rcY++; } renderRangeCal(); });
+  el.querySelectorAll(".rc-cell[data-iso]").forEach((b) => b.addEventListener("click", () => rcPick(b.dataset.iso)));
+}
+
+// the window the deal strip prices: your chosen dates, or the next 4 weeks
+function dealWindow() {
+  const today = isoOf(new Date());
+  const r = state.range;
+  if (r.start && r.end && r.end >= today) {
+    return { start: r.start >= today ? r.start : today, end: r.end, ranged: true };
+  }
+  return { start: today, end: isoAddDays(today, 27), ranged: false };
+}
+
 // swap the browse chrome (hint, sendbar, promoter-roleplay button) to match the current mode
 function applyModeUI() {
   const compare = state.mode === "compare";
@@ -309,8 +482,8 @@ function renderGrid() {
     card.style.setProperty("--hue", (i * 40) % 360); // carnival: each card a different hue
     card.dataset.id = v.id;
     card.innerHTML = `
-      <div class="v-photo" style="background:linear-gradient(150deg,${v.g[0]},${v.g[1]})">
-        ${v.glyph}
+      <div class="v-photo" style="${photoBg(v, 0)}">
+        ${venuePhotos(v) ? "" : v.glyph}
         ${v.fav ? `<span class="v-fav">Guest favorite</span>` : ""}
         ${compare ? `<button class="v-heart" type="button" aria-label="Add or remove ${v.name}">
           <svg viewBox="0 0 32 32"><path d="M16 28C7.9 22.7 3 17.9 3 12.4 3 8.3 6.3 5 10.4 5c2.4 0 4.6 1.1 6 2.9C17.7 6.1 19.9 5 22.3 5 26.4 5 29 8.3 29 12.4c0 5.5-4.9 10.3-13 15.6z"/></svg>
@@ -338,15 +511,15 @@ function renderGrid() {
   renderDealStrip();
 }
 
-// deal strip: cheapest nights over the next 4 weeks (ported from Emmett's PR #2)
+// deal strip: cheapest nights in your dates, or the next 4 weeks (ported from Emmett's PR #2)
 function renderDealStrip() {
   const strip = $("dealStrip");
   if (state.mode !== "book") { strip.classList.add("hidden"); return; }
-  const start = isoOf(new Date());
-  const end = isoAddDays(start, 27);
+  const { start, end, ranged } = dealWindow();
   const nights = nightsInRange(start, end, 42);
   if (nights.length < 2) { strip.classList.add("hidden"); return; }
   strip.classList.remove("hidden");
+  $("dealTitle").textContent = ranged ? "Deal nights in your dates" : "Deal nights this month";
   const minF = Math.min(...nights.map(demandFactor));
   const ref = state.type === "buyout" ? 5000 : 700; // representative "from" figure
   $("dealDays").innerHTML = nights.map((iso) => dealDayChip(iso, minF, ref)).join("");
@@ -356,7 +529,7 @@ function renderDealStrip() {
   const best = cheapestNight(start, end);
   const save = Math.round((demandFactor(state.date) / demandFactor(best) - 1) * 100);
   $("dealStripHint").textContent = state.date === best
-    ? `${fmtDate(best)} is the cheapest night this month`
+    ? `${fmtDate(best)} is the cheapest night ${ranged ? "in your dates" : "this month"}`
     : `${fmtDate(best)} is cheapest${state.date ? ` · you picked ${fmtDate(state.date)} (+${save}%)` : ""}`;
 }
 
@@ -386,6 +559,11 @@ function dealDayChip(iso, minF, basis) {
 function pickNight(iso) {
   state.date = iso;
   $("fDate").value = iso;
+  if (!(state.range.start && state.range.end && iso >= state.range.start && iso <= state.range.end)) {
+    state.range = { start: iso, end: iso }; // picking a single night narrows the When to it
+  }
+  syncWhenLabel();
+  renderRangeCal();
   renderDealStrip();
   toast(`${fmtDate(iso)} picked. Open a venue to book it.`);
 }
@@ -417,6 +595,7 @@ function bindVenue() {
 function openVenue(id) {
   state.currentVenueId = id;
   state.selectedPkgId = null;
+  state.addons = {};
   syncNight();
   renderVenue();
   showScreen("venue");
@@ -435,9 +614,8 @@ const SHOT_NAMES = ["Main room", "The bar", "VIP area", "The floor"];
 
 function galleryShots(v) {
   return SHOT_NAMES.map((name, i) => {
-    const a = v.g[i % 2], b = v.g[(i + 1) % 2];
     const angle = 120 + i * 35;
-    return `<figure class="vd-shot" style="background:linear-gradient(${angle}deg,${a},${b})"><figcaption>${name}</figcaption></figure>`;
+    return `<figure class="vd-shot" style="${photoBg(v, i + 1, angle)}"><figcaption>${name}</figcaption></figure>`;
   }).join("");
 }
 function venueBlurb(v) {
@@ -475,13 +653,15 @@ function renderVenue() {
         </button>`).join("")}
     </div>`).join("");
 
+  const ph = venuePhotos(v);
   $("venueDetail").innerHTML = `
     <div class="vd">
-      <div class="vd-hero" style="background:linear-gradient(150deg,${v.g[0]},${v.g[1]})">
-        <span class="vd-glyph">${v.glyph}</span>
+      <div class="vd-hero" style="${photoBg(v, 0)}">
+        ${ph ? "" : `<span class="vd-glyph">${v.glyph}</span>`}
         ${v.fav ? `<span class="v-fav">Guest favorite</span>` : ""}
       </div>
       <div class="vd-gallery">${galleryShots(v)}</div>
+      ${ph ? `<p class="vd-photo-credit">Demo photos: ${ph.credit} (temporary stand-ins, replaced with licensed photos before launch)</p>` : ""}
       <div class="vd-head">
         <div>
           <div class="vd-name">${v.name}</div>
@@ -503,6 +683,8 @@ function renderVenue() {
 
       <h2 class="venue-section">Choose what to book</h2>
       <div class="pkgs">${pkgHtml}</div>
+
+      <div id="vdAddons"></div>
 
       <div class="vd-deals">
         <div class="vd-deals-head"><h3>Pick your night</h3><span id="vdDealsHint"></span></div>
@@ -526,8 +708,55 @@ function renderVenue() {
 
 function selectPackage(pkgId) {
   state.selectedPkgId = pkgId;
+  const v = venueById(state.currentVenueId);
+  const p = packageById(v, pkgId);
+  if (!p || p.type !== "buyout") state.addons = {}; // added tables only ride on a buyout
   $("venueDetail").querySelectorAll(".pkg").forEach((b) => b.classList.toggle("sel", b.dataset.pkg === pkgId));
   renderVenueCalendar(); // prices update to the chosen package
+}
+
+/* ---- add tables onto a full-venue buyout ---- */
+
+function renderAddons() {
+  const box = $("vdAddons");
+  if (!box) return;
+  const v = venueById(state.currentVenueId);
+  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
+  if (!p || p.type !== "buyout") { box.innerHTML = ""; return; }
+
+  const tables = venuePackages(v).filter((x) => x.type === "table");
+  box.innerHTML = `
+    <div class="vd-addons">
+      <div class="vd-addons-head">
+        <h3>Add tables to your buyout</h3>
+        <span>Reserved tables inside your event, for VIPs and bottle service. Each has its own deposit.</span>
+      </div>
+      ${tables.map((t) => {
+        const qty = state.addons[t.id] || 0;
+        const each = priceForNight(t.price, state.date);
+        return `<div class="addon${qty ? " has" : ""}">
+          <div class="addon-main">
+            <b>${t.name}</b>
+            <span>${t.cap} · ${usd.format(each)} for ${fmtShort(state.date)}</span>
+          </div>
+          <div class="stepper" data-addon="${t.id}">
+            <button type="button" class="step-btn" data-step="-1" ${qty === 0 ? "disabled" : ""} aria-label="Remove one ${t.name}">-</button>
+            <b class="step-qty">${qty}</b>
+            <button type="button" class="step-btn" data-step="1" ${qty >= 8 ? "disabled" : ""} aria-label="Add one ${t.name}">+</button>
+          </div>
+        </div>`;
+      }).join("")}
+    </div>`;
+
+  box.querySelectorAll(".step-btn").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      const id = btn.closest(".stepper").dataset.addon;
+      const next = Math.min(8, Math.max(0, (state.addons[id] || 0) + Number(btn.dataset.step)));
+      if (next === 0) delete state.addons[id]; else state.addons[id] = next;
+      renderAddons();
+      updateVenueFooter();
+    })
+  );
 }
 
 function renderVenueCalendar() {
@@ -541,17 +770,22 @@ function renderVenueCalendar() {
   for (let d = 1; d <= days; d++) { const iso = isoOf(new Date(calY, calM, d)); if (iso >= todayIso) selectable.push(iso); }
   const minF = selectable.length ? Math.min(...selectable.map(demandFactor)) : 1;
 
+  const r = state.range;
+  const ranged = r.start && r.end;
+
   let cells = "";
   for (let i = 0; i < startWd; i++) cells += `<div class="cal-cell empty"></div>`;
   for (let d = 1; d <= days; d++) {
     const iso = isoOf(new Date(calY, calM, d));
+    const today = iso === todayIso;
     if (iso < todayIso) { cells += `<div class="cal-cell past"><span class="cal-num">${d}</span></div>`; continue; }
     const total = priceForNight(base, iso);
     const deal = demandFactor(iso) <= minF * 1.0001;
     const eb = Math.round(earlyBirdDiscount(iso) * 100);
     const picked = iso === state.date;
+    const inRange = ranged && iso >= r.start && iso <= r.end;
     const tag = deal ? `<span class="cal-tag">Deal</span>` : eb >= 5 ? `<span class="cal-tag early">-${eb}%</span>` : "";
-    cells += `<button type="button" class="cal-cell priced${picked ? " is-picked" : ""}${deal ? " is-deal" : ""}" data-iso="${iso}">
+    cells += `<button type="button" class="cal-cell priced${picked ? " is-picked" : ""}${deal ? " is-deal" : ""}${inRange ? " in-range" : ""}${today ? " is-today" : ""}" data-iso="${iso}">
       <span class="cal-dot lvl-${demandLabel(iso).toLowerCase()}"></span>
       <span class="cal-num">${d}</span>
       <span class="cal-price">${compactMoney(total)}</span>
@@ -564,36 +798,48 @@ function renderVenueCalendar() {
   $("vdCal").querySelectorAll(".cal-cell[data-iso]").forEach((btn) =>
     btn.addEventListener("click", () => { state.date = btn.dataset.iso; renderVenueCalendar(); })
   );
-  $("vdDealsHint").textContent = "Highlighted nights are cheapest. Midweek and booking early save the most.";
+  $("vdDealsHint").textContent = ranged
+    ? `Your dates ${fmtShort(r.start)} to ${fmtShort(r.end)} are highlighted. Cheapest nights are ringed.`
+    : "Highlighted nights are cheapest. Midweek and booking early save the most.";
+  renderAddons(); // add-on table prices follow the picked night
   updateVenueFooter();
 }
 
 function updateVenueFooter() {
   const footer = $("venueFooter");
-  const v = venueById(state.currentVenueId);
-  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
+  const cb = currentBooking();
   footer.classList.remove("hidden");
-  if (!p) {
+  if (!cb) {
     $("bfPrice").textContent = "Choose an option above";
     $("bfDeposit").textContent = `${fmtDate(state.date)} selected`;
     $("bfRequest").disabled = true;
   } else {
-    const total = priceForNight(p.price, state.date);
-    const deposit = roundTo((total * p.depPct) / 100, 10);
-    $("bfPrice").textContent = `${p.name} · ${usd.format(total)}`;
-    $("bfDeposit").textContent = `${fmtDate(state.date)} · deposit ${usd.format(deposit)}`;
+    const n = cb.addons.reduce((s, a) => s + a.qty, 0);
+    $("bfPrice").textContent = `${cb.p.name}${n ? ` + ${n} table${n > 1 ? "s" : ""}` : ""} · ${usd.format(cb.total)}`;
+    $("bfDeposit").textContent = `${fmtDate(state.date)} · deposit ${usd.format(cb.deposit)}`;
     $("bfRequest").disabled = false;
   }
 }
 
-// the price + deposit for the current package on the current night
+// the price + deposit for the current package (plus any added tables) on the current night
 function currentBooking() {
   const v = venueById(state.currentVenueId);
-  const p = packageById(v, state.selectedPkgId);
+  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
   if (!p) return null;
-  const total = priceForNight(p.price, state.date);
-  const deposit = roundTo((total * p.depPct) / 100, 10);
-  return { v, p, total, deposit, night: state.date };
+  const base = priceForNight(p.price, state.date);
+  let deposit = (base * p.depPct) / 100;
+  const addons = [];
+  if (p.type === "buyout") {
+    for (const t of venuePackages(v).filter((x) => x.type === "table")) {
+      const qty = state.addons[t.id] || 0;
+      if (!qty) continue;
+      const each = priceForNight(t.price, state.date);
+      addons.push({ id: t.id, name: t.name, qty, each, line: each * qty });
+      deposit += (each * qty * t.depPct) / 100; // each table keeps its own deposit rate
+    }
+  }
+  const total = base + addons.reduce((s, a) => s + a.line, 0);
+  return { v, p, base, addons, total, deposit: roundTo(deposit, 10), night: state.date };
 }
 
 function bindReqModal() {
@@ -605,11 +851,13 @@ function bindReqModal() {
 function openReqModal() {
   const cb = currentBooking();
   if (!cb) return;
-  const { v, p, total, deposit } = cb;
+  const { v, p, base, addons, total, deposit } = cb;
   const eb = Math.round(earlyBirdDiscount(state.date) * 100);
   $("reqVenue").textContent = v.name;
   $("reqSummary").innerHTML = `
-    <div class="bline"><span>${p.name} · ${demandLabel(state.date)} night${eb >= 5 ? ` · early bird -${eb}%` : ""}</span><b>${usd.format(total)}</b></div>
+    <div class="bline"><span>${p.name} · ${demandLabel(state.date)} night${eb >= 5 ? ` · early bird -${eb}%` : ""}</span><b>${usd.format(base)}</b></div>
+    ${addons.map((a) => `<div class="bline"><span>${a.qty}× ${a.name} (added)</span><b>${usd.format(a.line)}</b></div>`).join("")}
+    ${addons.length ? `<div class="bline"><span>Night total</span><b>${usd.format(total)}</b></div>` : ""}
     <div class="bline"><span>${p.type === "buyout" ? "Full venue" : "Table"} · ${state.party} people</span><b>${fmtDate(state.date)} · ${state.time}</b></div>
     <div class="bline"><span>Includes</span><b>${p.includes.join("<br>")}</b></div>
     <div class="bline total"><span>Deposit to hold</span><b>${usd.format(deposit)}</b></div>`;
@@ -620,11 +868,12 @@ function openReqModal() {
 function submitBooking() {
   const cb = currentBooking();
   if (!cb) return;
-  const { v, p, total, deposit } = cb;
+  const { v, p, addons, total, deposit } = cb;
   state.booking = {
     venueId: v.id,
     venueName: v.name,
     pkg: p,
+    addons,
     date: state.date,
     time: state.time,
     party: state.party,
@@ -654,7 +903,7 @@ function renderPending() {
       ? "No deposit was charged. Try another venue or another night."
       : `${b.venueName} is reviewing your request. They will approve or decline shortly.`}</p>
     <div class="pending-lines">
-      <div class="bline"><span>${b.pkg.name}</span><b>${usd.format(b.price)}</b></div>
+      <div class="bline"><span>${b.pkg.name}${bookingAddonsLabel(b)}</span><b>${usd.format(b.price)}</b></div>
       <div class="bline"><span>${b.pkg.type === "buyout" ? "Full venue" : "Table"} · ${b.party} people · ${b.occasion}</span><b>${fmtDate(b.date)} · ${b.time}</b></div>
       <div class="bline total"><span>Deposit ${declined ? "released" : "held"}</span><b>${usd.format(b.deposit)}</b></div>
     </div>
@@ -693,9 +942,16 @@ function renderBookingConfirm() {
   $("confirmVenue").textContent = b.venueName;
   $("confirmCode").innerHTML = `Confirmation <b>${b.code}</b>`;
   $("confirmLines").innerHTML = `
-    <div class="bline"><span>${b.pkg.name}</span><b>${usd.format(b.price)}</b></div>
+    <div class="bline"><span>${b.pkg.name}${bookingAddonsLabel(b)}</span><b>${usd.format(b.price)}</b></div>
+    ${(b.addons || []).map((a) => `<div class="bline"><span>Added: ${a.qty}× ${a.name}</span><b>${usd.format(a.line)}</b></div>`).join("")}
     <div class="bline"><span>${b.pkg.type === "buyout" ? "Full venue" : "Table"} · ${b.party} people · ${b.occasion}</span><b>${fmtDate(b.date)} · ${b.time}</b></div>
     <div class="bline total"><span>Deposit paid (credited to bill)</span><b>${usd.format(b.deposit)}</b></div>`;
+}
+
+// short "+ 2 tables" suffix for a stored booking's package line
+function bookingAddonsLabel(b) {
+  const n = (b.addons || []).reduce((s, a) => s + a.qty, 0);
+  return n ? ` + ${n} table${n > 1 ? "s" : ""}` : "";
 }
 
 function resetCustomer() {
@@ -1170,12 +1426,14 @@ function buildPRequests() {
       type: b.pkg.type, party: b.party,
       date: fmtDate(b.date), time: b.time, occasion: b.occasion,
       price: b.price, deposit: b.deposit,
+      addons: b.addons || [],
       status: b.status === "pending" ? "open" : b.status, // open | confirmed | declined
       isNew: true,
     });
   }
   list.push(
-    { id: "s1", title: "Full venue buyout", type: "buyout", party: 120, date: "Sat, Aug 22", time: "10:00 PM", occasion: "Corporate", price: 14000, deposit: 2800, status: "open", isNew: true },
+    { id: "s1", title: "Full venue buyout", type: "buyout", party: 120, date: "Sat, Aug 22", time: "10:00 PM", occasion: "Corporate", price: 17000, deposit: 3550,
+      addons: [{ name: "VIP booth", qty: 2, each: 1500, line: 3000 }], status: "open", isNew: true },
     { id: "s2", title: "VIP booth", type: "table", party: 10, date: "Fri, Aug 14", time: "11:00 PM", occasion: "Bachelor / bachelorette", price: 1500, deposit: 375, status: "open", isNew: false },
   );
   PROMOTER.requests = list;
@@ -1224,6 +1482,7 @@ function pReqCard(r) {
       <div><small>Party</small><b>${r.party} people</b></div>
       <div><small>Occasion</small><b>${r.occasion}</b></div>
       <div><small>Price</small><b>${usd.format(r.price)} · dep ${usd.format(r.deposit)}</b></div>
+      ${r.addons && r.addons.length ? `<div><small>Added tables</small><b>${r.addons.map((a) => `${a.qty}× ${a.name}`).join(", ")}</b></div>` : ""}
     </div>`;
 
   let foot;
@@ -1387,7 +1646,11 @@ function launchFromChat() {
     state.type = c.type;
     document.querySelectorAll(".prod-tab").forEach((x) => x.classList.toggle("active", x.dataset.type === state.type));
   }
-  if (c.date) $("fDate").value = c.date;
+  if (c.date) {
+    $("fDate").value = c.date;
+    state.range = { start: c.date, end: c.date };
+    syncWhenLabel();
+  }
   if (c.time) $("fTime").value = c.time;
   if (c.party) $("fPartyNum").value = c.party;
   if (c.occasion) $("fOccasion").value = c.occasion;

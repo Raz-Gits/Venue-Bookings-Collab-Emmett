@@ -124,6 +124,7 @@ Goal: strangers can use it without either of us in the loop.
 1. **A2P 10DLC registration** (Twilio, weeks of carrier review) gates all US SMS in Phase 2.
 2. **Venue relationships**: signing 3 to 5 Orlando venues is the real bottleneck, not code. The demo is the sales tool; start showing it now.
 3. **Stripe account + Connect onboarding** needs the business entity.
+4. **Licensed venue photography.** The demo currently hotlinks TEMP photos from three real Orlando venues (The Beacham, Mango's Tropical Cafe, ICEBAR; see `TEMP_REAL_PHOTOS` in `app.js` and the copy in `preview-airbnb.html`) purely to judge the look. **Hard launch blocker:** replace with our own licensed photos, with each venue's permission, before anything public.
 
 ## Open questions (not yet decided)
 

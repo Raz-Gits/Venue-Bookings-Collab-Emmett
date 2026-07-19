@@ -78,10 +78,20 @@
     </div>
 
     <div class="filters" id="filters">
-      <label class="refine-pill">
-        <span>When</span>
-        <input type="date" id="fDate" required />
-      </label>
+      <div class="when-wrap">
+        <button type="button" class="refine-pill when-pill" id="whenPill" aria-haspopup="dialog" aria-controls="whenPop">
+          <span>When</span>
+          <em id="whenLabel">Add dates</em>
+        </button>
+        <div class="when-pop hidden" id="whenPop" role="dialog" aria-label="Choose your dates">
+          <div class="rc" id="rcCal"></div>
+          <div class="when-foot">
+            <button type="button" class="btn-textlink" id="whenClear">Clear</button>
+            <button type="button" class="btn-primary" id="whenDone">Done</button>
+          </div>
+        </div>
+        <input type="date" id="fDate" hidden />
+      </div>
       <div class="refine-pill guests-pill">
         <span>Guests</span>
         <input type="number" id="fPartyNum" class="guests-input" value="8" min="1" max="2000" inputmode="numeric" aria-label="Number of guests" />
@@ -114,7 +124,7 @@
     </div>
 
     <div class="deal-strip hidden" id="dealStrip">
-      <div class="deal-strip-head"><b>Deal nights this month</b><span id="dealStripHint"></span></div>
+      <div class="deal-strip-head"><b id="dealTitle">Deal nights this month</b><span id="dealStripHint"></span></div>
       <div class="deal-days" id="dealDays"></div>
     </div>
 
