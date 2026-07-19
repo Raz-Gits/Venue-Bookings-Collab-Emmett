@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>BookOut · every venue answers</title>
-<meta name="description" content="Browse Orlando venues, pick the ones you want, tell them your headcount, and every promoter quotes you on a countdown. Compare and book." />
+<title>BookOut · book your night out</title>
+<meta name="description" content="Browse Orlando clubs and venues with set prices, compare every place for your dates, pick your night, and book. The venue approves and you're in." />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◈</text></svg>" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,10 +18,7 @@
     bookout<i>◈</i>
   </div>
   <div class="topbar-right">
-    <span class="badge-demo">Demo · 1 min = 1 hr</span>
-    <button class="btn-promoter" id="btnPromoter">
-      <span class="dot" id="promoterDot"></span> Promoter view
-    </button>
+    <span class="badge-demo">Demo · bookings simulated</span>
   </div>
 </header>
 
@@ -32,7 +29,7 @@
     <div class="city-screen">
       <p class="hero-kicker">BookOut</p>
       <h1 class="hero-title">Where are you<br /><em>going out?</em></h1>
-      <p class="hero-sub">Pick your city and we'll show you every venue, then get them all to quote your night.</p>
+      <p class="hero-sub">Pick your city, see every venue with real prices, and book your night in a few taps.</p>
       <div class="city-field">
         <svg class="city-pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6-7-11a7 7 0 0114 0c0 5-7 11-7 11z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="10" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
         <input type="text" id="cityInput" placeholder="Search a city" autocomplete="off" aria-label="City" />
@@ -95,11 +92,10 @@
 
     <div class="browse-tools">
       <div class="mode-toggle" id="typeToggle" role="tablist" aria-label="What to book">
-        <button type="button" class="mode-opt active" data-filter="all" role="tab">All</button>
-        <button type="button" class="mode-opt" data-filter="table" role="tab">Tables</button>
+        <button type="button" class="mode-opt active" data-filter="table" role="tab">Tables</button>
         <button type="button" class="mode-opt" data-filter="buyout" role="tab">Full venues</button>
       </div>
-      <button type="button" class="btn-textlink compare-link" id="modeLink">Compare quotes from every venue →</button>
+      <button type="button" class="btn-textlink compare-link" id="modeLink">Compare prices →</button>
     </div>
 
     <div id="bookRows">
@@ -111,25 +107,20 @@
       </section>
     </div>
 
-    <div class="browse-head hidden" id="browseHead">
-      <h2 class="browse-count" id="browseCount"></h2>
-      <p class="browse-hint" id="browseHint">Tap venues to pick who quotes you.</p>
-    </div>
+  </section>
 
-    <div class="venue-grid hidden" id="venueGrid"></div>
-
-    <div class="sendbar hidden" id="sendbar">
-      <div class="sendbar-info">
-        <b id="sendCount"></b>
-        <span>Every selected venue gets your request to quote</span>
+  <!-- ============ COMPARE PRICES (instant, no quotes) ============ -->
+  <section class="screen hidden" id="screen-compare">
+    <button class="btn-back" data-back="browse">← Back to venues</button>
+    <div class="cmp-head">
+      <h1 class="screen-title" id="cmpTitle"></h1>
+      <p class="screen-sub" id="cmpSub"></p>
+      <div class="mode-toggle" id="cmpToggle" role="tablist" aria-label="What to compare">
+        <button type="button" class="mode-opt" data-filter="table" role="tab">Tables</button>
+        <button type="button" class="mode-opt" data-filter="buyout" role="tab">Full venues</button>
       </div>
-      <div class="refine-pill budget-pill">
-        <span>Budget</span>
-        <em class="cur">$</em>
-        <input type="number" id="fBudget" class="budget-input" placeholder="total" min="0" step="50" inputmode="numeric" aria-label="Total budget (optional, promoters see it)" />
-      </div>
-      <button class="btn-primary" id="btnSend">Request quotes</button>
     </div>
+    <div class="cmp-list" id="cmpList"></div>
   </section>
 
   <!-- ============ VENUE DETAIL (book + approve) ============ -->
@@ -148,35 +139,6 @@
   <!-- ============ PENDING APPROVAL ============ -->
   <section class="screen hidden" id="screen-pending">
     <div class="pending" id="pendingCard"></div>
-  </section>
-
-  <!-- ============ LIVE QUOTE BOARD ============ -->
-  <section class="screen hidden" id="screen-board">
-    <button class="btn-back" data-back="browse">← Back to venues</button>
-    <div class="board-head card">
-      <div class="ring-wrap">
-        <div class="ring" id="ring"><div class="ring-inner"><span id="ringTime">60:00</span><small id="ringLabel">left to quote</small></div></div>
-      </div>
-      <div class="board-meta">
-        <h2 id="boardTitle">Quotes are coming in</h2>
-        <p id="boardSummary"></p>
-        <p class="board-note">Texts sent to <b id="textedCount"></b> promoters · <span id="repliedCount">0 replied</span></p>
-      </div>
-    </div>
-    <div class="board-tools">
-      <span>Sort by</span>
-      <div class="seg-small" id="sortSeg">
-        <button type="button" class="seg-opt active" data-sort="price">Price</button>
-        <button type="button" class="seg-opt" data-sort="deposit">Deposit</button>
-        <button type="button" class="seg-opt" data-sort="arrival">Newest</button>
-      </div>
-    </div>
-    <div class="quotes" id="quotesList">
-      <div class="quotes-empty" id="quotesEmpty">
-        <div class="pulse-dot"></div>
-        <p>Waiting for the first quote…<br /><small>Promoters are typing. Try the <b>Promoter view</b> ↗ to send one yourself.</small></p>
-      </div>
-    </div>
   </section>
 
   <!-- ============ CONFIRMATION ============ -->
@@ -286,22 +248,6 @@
   </div>
 </div>
 
-<!-- ============ BOOKING MODAL (compare-quotes flow) ============ -->
-<div class="modal-backdrop hidden" id="bookBackdrop">
-  <div class="modal card" role="dialog" aria-modal="true">
-    <button class="modal-x" id="bookClose">×</button>
-    <p class="modal-kicker">Confirm and pay</p>
-    <h3 id="bookVenue"></h3>
-    <div class="book-lines" id="bookLines"></div>
-    <label class="field">
-      <span>Card <em>(demo, not charged)</em></span>
-      <input type="text" id="bookCard" value="4242 4242 4242 4242" readonly />
-    </label>
-    <button class="btn-primary btn-big" id="btnPay">Pay deposit <b id="payAmount"></b></button>
-    <p class="modal-fine">Deposit is set by the venue and credited toward your bill. Free cancellation window &amp; no-show policy: TBD in PLAN.md.</p>
-  </div>
-</div>
-
 <!-- ============ ASK AI CHAT ============ -->
 <div class="chat-backdrop hidden" id="chatBackdrop">
   <div class="chat card" role="dialog" aria-modal="true" aria-label="BookOut assistant">
@@ -322,20 +268,6 @@
     </form>
   </div>
 </div>
-
-<!-- ============ PROMOTER PHONE PANEL ============ -->
-<div class="panel-backdrop hidden" id="panelBackdrop"></div>
-<aside class="promoter-panel hidden" id="promoterPanel" aria-label="Promoter demo phone">
-  <div class="panel-head">
-    <b>Promoter demo</b>
-    <span>You're the promoter for <b id="promoterVenueName">…</b></span>
-    <button class="panel-x" id="panelClose">×</button>
-  </div>
-  <div class="phone">
-    <div class="phone-notch"></div>
-    <div class="phone-screen" id="phoneScreen"></div>
-  </div>
-</aside>
 
 <div class="toast hidden" id="toast"></div>
 

@@ -28,9 +28,14 @@ book; we kept our **venue-approval** step on top of their pricing.
 
 The browse screen now uses the **Airbnb-style home layout** trialed in
 `preview-airbnb.html`: a Where / When / Who search pill (When opens the ported
-React Aria range calendar), slim detail chips, and photo-first carousels for
-buyouts and tables (venues with real photos lead). Compare-quotes mode keeps
-the multi-select grid. New features, all simulated in the demo:
+React Aria range calendar) and one photo-first explore grid with a
+**Tables / Full venues** toggle (tables default; venues with real photos lead).
+
+**The quote-request auction is removed** (countdown, auto-quotes, promoter
+roleplay phone). "Compare" is now an **instant price-comparison screen**: every
+venue's cheapest night in your selected dates for the chosen type, price +
+deposit shown, best price first, tap a row to book that night. Set prices made
+quoting redundant. New features, all simulated in the demo:
 
 - **Add tables to a buyout**: per-night priced table add-ons, each with its
   own deposit rate, flowing through request → approval → dashboard.
