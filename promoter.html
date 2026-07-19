@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BookOut for venues · Portal preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+/* ============================================================
+   BOOKOUT · venue portal preview (standalone, all data simulated)
+   Same design language as the customer app: white canvas, one
+   Rausch accent, Inter, soft radii, single shadow tier.
+   ============================================================ */
+.vp-topbar {
+  position: sticky; top: 0; z-index: 80;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  height: 72px; padding: 0 clamp(16px, 4vw, 40px);
+  background: var(--canvas); border-bottom: 1px solid var(--hairline-soft);
+}
+.vp-brand { font-weight: 800; font-size: 1.2rem; letter-spacing: -0.03em; color: var(--rausch); white-space: nowrap; }
+.vp-brand i { font-style: normal; }
+.vp-brand b { font-weight: 600; font-size: 0.8rem; color: var(--muted); margin-left: 4px; }
+.vp-tabs { display: flex; gap: 4px; }
+.vp-tab {
+  font-family: var(--font); font-size: 0.88rem; font-weight: 500; color: var(--muted);
+  background: none; border: 0; border-radius: var(--r-full);
+  padding: 9px 16px; cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.vp-tab:hover { background: var(--surface-soft); color: var(--ink); }
+.vp-tab.on { background: var(--ink); color: #fff; }
+.vp-id { display: flex; align-items: center; gap: 10px; }
+.vp-id small { font-size: 0.82rem; font-weight: 600; color: var(--ink); }
+.vp-avatar {
+  width: 34px; height: 34px; border-radius: var(--r-full);
+  display: grid; place-items: center;
+  background: var(--ink); color: #fff; font-size: 0.72rem; font-weight: 700;
+}
+.vp-demo-note {
+  text-align: center; font-size: 0.74rem; color: var(--muted);
+  background: var(--surface-soft); padding: 7px 16px;
+}
+.vp-body { max-width: 1060px; margin: 0 auto; padding: 28px clamp(16px, 4vw, 40px) 80px; }
+.vp-pane { display: none; }
+.vp-pane.on { display: block; }
+.vp-greet h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+.vp-greet p { color: var(--muted); font-size: 0.92rem; margin-top: 2px; }
+.vp-h2 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; margin: 30px 0 12px; }
+.vp-hint { font-size: 0.8rem; color: var(--muted-soft); margin: -8px 0 14px; }
+
+/* stat cards */
+.vp-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 20px; }
+.vp-stat { border: 1px solid var(--hairline-soft); border-radius: var(--r-md); padding: 14px 16px; box-shadow: var(--shadow); }
+.vp-stat small { display: block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); }
+.vp-stat b { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; }
+.vp-stat span { display: block; font-size: 0.76rem; color: var(--muted); }
+.vp-stat.hot b { color: var(--rausch); }
+
+/* request cards */
+.vp-req {
+  border: 1px solid var(--hairline); border-radius: var(--r-md);
+  padding: 16px 18px; margin-bottom: 12px; box-shadow: var(--shadow);
+  transition: opacity 0.3s;
+}
+.vp-req-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.vp-req-top b { font-size: 1rem; }
+.vp-req-top .vp-paid { font-size: 0.72rem; font-weight: 700; color: #0a7a3d; background: #e7f6ed; border-radius: var(--r-full); padding: 3px 10px; }
+.vp-req-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 18px; margin: 12px 0; }
+.vp-cell small { display: block; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); }
+.vp-cell b { font-size: 0.88rem; font-weight: 600; }
+.vp-req-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--hairline-soft); padding-top: 12px; }
+.vp-req-foot p { font-size: 0.76rem; color: var(--muted); max-width: 480px; }
+.vp-req-btns { display: flex; gap: 8px; }
+.vp-confirm {
+  font-family: var(--font); font-weight: 600; font-size: 0.86rem; color: #fff;
+  background: var(--ink); border: 0; border-radius: var(--r-sm); padding: 10px 18px; cursor: pointer;
+}
+.vp-confirm:hover { background: #000; }
+.vp-decline {
+  font-family: var(--font); font-weight: 600; font-size: 0.86rem; color: var(--ink);
+  background: none; border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 10px 18px; cursor: pointer;
+}
+.vp-decline:hover { border-color: var(--ink); }
+.vp-req.done { opacity: 0.65; }
+.vp-req .vp-decided { font-size: 0.84rem; font-weight: 600; }
+.vp-req .vp-decided.ok { color: #0a7a3d; }
+.vp-req .vp-decided.no { color: var(--error); }
+
+/* tonight's lineup */
+.vp-lineup { border: 1px solid var(--hairline-soft); border-radius: var(--r-md); overflow: hidden; }
+.vp-line { display: flex; align-items: center; gap: 14px; padding: 12px 16px; }
+.vp-line + .vp-line { border-top: 1px solid var(--hairline-soft); }
+.vp-line time { font-size: 0.82rem; font-weight: 700; width: 74px; flex-shrink: 0; }
+.vp-line .vp-line-main { flex: 1; min-width: 0; }
+.vp-line .vp-line-main b { display: block; font-size: 0.9rem; }
+.vp-line .vp-line-main span { font-size: 0.78rem; color: var(--muted); }
+.vp-line .vp-line-dep { font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+
+/* calendar */
+.vp-calwrap { border: 1px solid var(--hairline-soft); border-radius: var(--r-md); padding: 18px; box-shadow: var(--shadow); max-width: 640px; }
+.vp-calhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.vp-calhead b { font-size: 1rem; }
+.vp-calnav { display: flex; gap: 6px; }
+.vp-calnav button {
+  width: 32px; height: 32px; border-radius: var(--r-full); border: 1px solid var(--hairline);
+  background: none; cursor: pointer; font-size: 0.9rem; color: var(--ink);
+}
+.vp-calnav button:hover { background: var(--surface-soft); }
+.vp-dow, .vp-calgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.vp-dow span { text-align: center; font-size: 0.68rem; font-weight: 700; color: var(--muted-soft); padding: 4px 0; }
+.vp-day {
+  position: relative; min-height: 64px; border: 1px solid var(--hairline-soft); border-radius: var(--r-sm);
+  background: none; cursor: pointer; font-family: var(--font); text-align: left; padding: 6px 8px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.vp-day:hover { border-color: var(--ink); }
+.vp-day i { font-style: normal; font-size: 0.8rem; font-weight: 600; color: var(--ink); }
+.vp-day small { display: block; font-size: 0.66rem; color: var(--muted); }
+.vp-day .vp-bknum {
+  position: absolute; top: 6px; right: 6px;
+  font-size: 0.62rem; font-weight: 700; color: #fff; background: var(--rausch);
+  border-radius: var(--r-full); padding: 1px 6px;
+}
+.vp-day.blocked { background: var(--surface-strong); }
+.vp-day.blocked i, .vp-day.blocked small { color: var(--muted-soft); text-decoration: line-through; }
+.vp-day.past { opacity: 0.35; cursor: default; }
+.vp-day.empty { border: 0; cursor: default; }
+.vp-legend { display: flex; gap: 18px; margin-top: 12px; font-size: 0.74rem; color: var(--muted); flex-wrap: wrap; }
+.vp-legend i { font-style: normal; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.vp-legend .lg-open i { border: 1px solid var(--hairline); }
+.vp-legend .lg-blocked i { background: var(--surface-strong); }
+.vp-legend .lg-booked i { background: var(--rausch); }
+
+/* pricing */
+.vp-pkg {
+  display: grid; grid-template-columns: 1fr auto auto auto; gap: 14px; align-items: center;
+  border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 14px 18px; margin-bottom: 10px;
+}
+.vp-pkg-main b { display: block; font-size: 0.95rem; }
+.vp-pkg-main span { font-size: 0.78rem; color: var(--muted); }
+.vp-pkg label { display: block; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); margin-bottom: 3px; }
+.vp-price-in { display: flex; align-items: center; border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 0 10px; background: var(--canvas); }
+.vp-price-in span { color: var(--muted); font-size: 0.88rem; }
+.vp-price-in input { width: 72px; border: 0; outline: 0; font-family: var(--font); font-size: 0.92rem; font-weight: 600; padding: 8px 4px; background: none; color: var(--ink); }
+.vp-pkg select { font-family: var(--font); font-size: 0.88rem; font-weight: 600; border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 8px 10px; background: var(--canvas); color: var(--ink); }
+.vp-sign-toggle { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--body); cursor: pointer; }
+.vp-sign-toggle input { accent-color: var(--rausch); width: 16px; height: 16px; }
+.vp-dyn-note { border: 1px solid var(--hairline-soft); border-left: 3px solid var(--rausch); border-radius: var(--r-sm); background: var(--surface-soft); padding: 12px 16px; font-size: 0.82rem; color: var(--body); margin-top: 18px; max-width: 640px; }
+@media (max-width: 720px) { .vp-pkg { grid-template-columns: 1fr 1fr; } .vp-pkg-main { grid-column: 1 / -1; } }
+
+/* earnings */
+.vp-payout { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 20px 22px; box-shadow: var(--shadow); max-width: 640px; }
+.vp-payout small { display: block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); }
+.vp-payout b { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; }
+.vp-payout span { display: block; font-size: 0.78rem; color: var(--muted); }
+.vp-flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 18px; max-width: 640px; }
+.vp-flow div { border: 1px solid var(--hairline-soft); border-radius: var(--r-sm); padding: 12px 14px; font-size: 0.78rem; color: var(--body); }
+.vp-flow div b { display: block; font-size: 0.86rem; color: var(--ink); margin-bottom: 2px; }
+.vp-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.84rem; }
+.vp-table th { text-align: left; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); padding: 8px 10px; border-bottom: 1px solid var(--hairline); }
+.vp-table td { padding: 10px; border-bottom: 1px solid var(--hairline-soft); }
+.vp-table td b { font-weight: 600; }
+.vp-paidtag { font-size: 0.7rem; font-weight: 700; color: #0a7a3d; background: #e7f6ed; border-radius: var(--r-full); padding: 2px 9px; }
+
+/* listing */
+.vp-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 20px; max-width: 720px; }
+.vp-photo { aspect-ratio: 4 / 3; border-radius: var(--r-sm); background-size: cover; background-position: center; }
+.vp-photo-add {
+  aspect-ratio: 4 / 3; border: 1.5px dashed var(--border-strong); border-radius: var(--r-sm);
+  display: grid; place-items: center; font-size: 0.78rem; font-weight: 600; color: var(--muted);
+  background: none; cursor: pointer; font-family: var(--font);
+}
+.vp-photo-add:hover { border-color: var(--ink); color: var(--ink); }
+.vp-field { display: block; margin-bottom: 14px; max-width: 560px; }
+.vp-field span { display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); margin-bottom: 5px; }
+.vp-field input, .vp-field textarea {
+  width: 100%; font-family: var(--font); font-size: 0.92rem; color: var(--ink);
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 10px 12px; background: var(--canvas);
+}
+.vp-field textarea { min-height: 84px; resize: vertical; }
+.vp-save {
+  font-family: var(--font); font-weight: 600; font-size: 0.92rem; color: #fff;
+  background: var(--rausch); border: 0; border-radius: var(--r-sm); padding: 12px 24px; cursor: pointer;
+}
+.vp-save:hover { background: var(--rausch-active); }
+.vp-preview-link { display: inline-block; margin-left: 14px; font-size: 0.86rem; }
+
+/* toast */
+.vp-toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px);
+  background: var(--ink); color: #fff; font-size: 0.86rem; font-weight: 500;
+  border-radius: var(--r-full); padding: 11px 22px; box-shadow: var(--shadow-lg);
+  opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; z-index: 200;
+}
+.vp-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+@media (max-width: 860px) {
+  .vp-topbar { flex-wrap: wrap; height: auto; padding-top: 10px; padding-bottom: 10px; }
+  .vp-tabs { order: 3; width: 100%; overflow-x: auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="vp-topbar">
+  <div class="vp-brand">bookout<i>◈</i> <b>for venues</b></div>
+  <nav class="vp-tabs" id="vpTabs">
+    <button type="button" class="vp-tab on" data-pane="today">Today</button>
+    <button type="button" class="vp-tab" data-pane="calendar">Calendar</button>
+    <button type="button" class="vp-tab" data-pane="pricing">Pricing</button>
+    <button type="button" class="vp-tab" data-pane="earnings">Earnings</button>
+    <button type="button" class="vp-tab" data-pane="listing">Listing</button>
+  </nav>
+  <div class="vp-id"><small>Neon Garden</small><span class="vp-avatar">NG</span></div>
+</header>
+<div class="vp-demo-note">Preview of the BookOut venue portal · all data simulated · <a href="index.html">back to the customer app</a></div>
+
+<main class="vp-body">
+
+  <!-- ============ TODAY ============ -->
+  <section class="vp-pane on" id="pane-today">
+    <div class="vp-greet">
+      <h1>Good evening, Neon Garden</h1>
+      <p id="vpDateLine"></p>
+    </div>
+    <div class="vp-stats" id="vpStats"></div>
+
+    <h2 class="vp-h2">Paid bookings waiting on you</h2>
+    <p class="vp-hint">Each one is already paid and reads as booked on the customer's side. Confirm it, or decline to refund them instantly.</p>
+    <div id="vpReqs"></div>
+
+    <h2 class="vp-h2">Tonight's lineup</h2>
+    <div class="vp-lineup" id="vpLineup"></div>
+  </section>
+
+  <!-- ============ CALENDAR ============ -->
+  <section class="vp-pane" id="pane-calendar">
+    <div class="vp-greet"><h1>Availability</h1><p>Tap a night to block it or reopen it. Nights with bookings can't be blocked.</p></div>
+    <div class="vp-calwrap" style="margin-top: 20px;">
+      <div class="vp-calhead">
+        <b id="vpCalMonth"></b>
+        <div class="vp-calnav">
+          <button type="button" id="vpCalPrev" aria-label="Previous month">‹</button>
+          <button type="button" id="vpCalNext" aria-label="Next month">›</button>
+        </div>
+      </div>
+      <div class="vp-dow"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+      <div class="vp-calgrid" id="vpCalGrid"></div>
+      <div class="vp-legend">
+        <span class="lg-open"><i></i>Open, price shown</span>
+        <span class="lg-booked"><i></i>Bookings</span>
+        <span class="lg-blocked"><i></i>Blocked</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PRICING ============ -->
+  <section class="vp-pane" id="pane-pricing">
+    <div class="vp-greet"><h1>Pricing and packages</h1><p>You set the base price and deposit. Changes go live for customers instantly.</p></div>
+    <div style="margin-top: 20px;" id="vpPkgs"></div>
+    <div class="vp-dyn-note">
+      <b>Nightly pricing is automatic.</b> BookOut adjusts your base by demand: Fridays and Saturdays run higher, midweek runs lower, and booking far ahead earns customers an early-bird discount. You always keep control of the base.
+    </div>
+  </section>
+
+  <!-- ============ EARNINGS ============ -->
+  <section class="vp-pane" id="pane-earnings">
+    <div class="vp-greet"><h1>Earnings</h1><p>Deposits land the next business day. BookOut's 10% is taken out of the deposit, never billed to you.</p></div>
+    <div class="vp-payout" style="margin-top: 20px;">
+      <div>
+        <small>Next payout</small>
+        <b>$2,340</b>
+        <span>Tuesday · to Chase ····6821</span>
+      </div>
+      <div>
+        <small>This month</small>
+        <b>$11,970</b>
+        <span>14 bookings · $1,330 in BookOut fees</span>
+      </div>
+    </div>
+    <div class="vp-flow">
+      <div><b>1 · Customer pays</b>Deposit charged the moment they book, on their card or Apple Pay.</div>
+      <div><b>2 · You confirm</b>Decline and they're refunded instantly, no charge to anyone.</div>
+      <div><b>3 · You get paid</b>Deposit minus 10% lands next business day. Balance is settled at the venue.</div>
+    </div>
+    <h2 class="vp-h2">Recent payouts</h2>
+    <table class="vp-table">
+      <thead><tr><th>Week</th><th>Bookings</th><th>Gross deposits</th><th>BookOut fee</th><th>Payout</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>Jul 13 to Jul 19</td><td>6</td><td><b>$2,600</b></td><td>$260</td><td><b>$2,340</b></td><td><span class="vp-paidtag">On the way</span></td></tr>
+        <tr><td>Jul 6 to Jul 12</td><td>5</td><td><b>$2,150</b></td><td>$215</td><td><b>$1,935</b></td><td><span class="vp-paidtag">Paid</span></td></tr>
+        <tr><td>Jun 29 to Jul 5</td><td>8</td><td><b>$4,300</b></td><td>$430</td><td><b>$3,870</b></td><td><span class="vp-paidtag">Paid</span></td></tr>
+        <tr><td>Jun 22 to Jun 28</td><td>4</td><td><b>$1,700</b></td><td>$170</td><td><b>$1,530</b></td><td><span class="vp-paidtag">Paid</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ LISTING ============ -->
+  <section class="vp-pane" id="pane-listing">
+    <div class="vp-greet"><h1>Your listing</h1><p>What customers see on your BookOut page. Edits go live instantly.</p></div>
+    <h2 class="vp-h2">Photos</h2>
+    <div class="vp-photos">
+      <div class="vp-photo" style="background-image: url('https://lirp.cdn-website.com/4eb3478d/dms3rep/multi/opt/beacham-home-hero-1-1920w.png')"></div>
+      <div class="vp-photo" style="background-image: url('https://lirp.cdn-website.com/4eb3478d/dms3rep/multi/opt/beacham-home-rental-1-1920w.png')"></div>
+      <div class="vp-photo" style="background-image: url('https://lirp.cdn-website.com/4eb3478d/dms3rep/multi/opt/beacham-home-rental-2-1920w.png')"></div>
+      <button type="button" class="vp-photo-add" id="vpAddPhoto">+ Add photos</button>
+    </div>
+    <label class="vp-field"><span>Venue name</span><input type="text" value="Neon Garden" /></label>
+    <label class="vp-field"><span>Neighborhood</span><input type="text" value="Downtown Orlando" /></label>
+    <label class="vp-field"><span>Vibe tags</span><input type="text" value="Rooftop · Open-air" /></label>
+    <label class="vp-field"><span>About your venue</span><textarea>Neon Garden is a rooftop spot in Downtown Orlando, known for open-air nights over Orange Ave. Reserve a table or take the whole roof.</textarea></label>
+    <button type="button" class="vp-save" id="vpSaveListing">Save changes</button>
+    <a class="btn-textlink vp-preview-link" href="index.html">Preview your public page</a>
+  </section>
+
+</main>
+
+<div class="vp-toast" id="vpToast"></div>
+
+<script>
+/* All simulated. This page is the pitch: what a venue gets on day one. */
+const $ = (id) => document.getElementById(id);
+
+let toastT = 0;
+function toast(msg) {
+  const el = $("vpToast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove("show"), 2600);
+}
+
+/* ---- tabs ---- */
+$("vpTabs").addEventListener("click", (e) => {
+  const btn = e.target.closest(".vp-tab");
+  if (!btn) return;
+  document.querySelectorAll(".vp-tab").forEach((t) => t.classList.toggle("on", t === btn));
+  document.querySelectorAll(".vp-pane").forEach((p) => p.classList.toggle("on", p.id === "pane-" + btn.dataset.pane));
+});
+
+/* ---- today ---- */
+const REQS = [
+  { id: "r1", who: "Maya R.", pkg: "VIP booth", price: 1560, dep: 390, night: "Fri, Jul 24", time: "10:00 PM", party: 12, occasion: "Birthday", sign: "Maya's Golden Hour", extras: "", pay: "Apple Pay", decided: null },
+  { id: "r2", who: "Devon K.", pkg: "Full venue buyout", price: 8050, dep: 1610, night: "Sat, Aug 1", time: "9:00 PM", party: 180, occasion: "Company party", sign: "", extras: "2× Dancefloor table added", pay: "Card ····4242", decided: null },
+];
+const LINEUP = [
+  { time: "9:30 PM", who: "Jordan P. · 8 guests", pkg: "Dancefloor table", dep: "$185 paid" },
+  { time: "10:00 PM", who: "Sofia M. · 14 guests", pkg: "VIP booth · LED sign: \"Sofia's 21st\"", dep: "$300 paid" },
+  { time: "10:30 PM", who: "Chris B. · 6 guests", pkg: "Standard table", dep: "$120 paid" },
+  { time: "11:00 PM", who: "Amara T. · 10 guests", pkg: "Dancefloor table", dep: "$185 paid" },
+];
+
+function pendingCount() { return REQS.filter((r) => !r.decided).length; }
+
+function renderStats() {
+  $("vpStats").innerHTML = `
+    <div class="vp-stat"><small>Tonight</small><b>${LINEUP.length} bookings</b><span>${LINEUP.reduce((s, l) => s + parseInt(l.who.match(/(\d+) guests/)[1], 10), 0)} guests on the list</span></div>
+    <div class="vp-stat hot"><small>Waiting on you</small><b>${pendingCount()}</b><span>paid and waiting to confirm</span></div>
+    <div class="vp-stat"><small>This week</small><b>$2,600</b><span>6 deposits collected</span></div>
+    <div class="vp-stat"><small>Next payout</small><b>$2,340</b><span>lands Tuesday</span></div>`;
+}
+
+function renderReqs() {
+  $("vpReqs").innerHTML = REQS.map((r) => `
+    <div class="vp-req${r.decided ? " done" : ""}" id="req-${r.id}">
+      <div class="vp-req-top">
+        <b>${r.who} · ${r.pkg}</b>
+        <span class="vp-paid">Paid · ${r.pay}</span>
+      </div>
+      <div class="vp-req-grid">
+        <div class="vp-cell"><small>Night</small><b>${r.night} · ${r.time}</b></div>
+        <div class="vp-cell"><small>Guests</small><b>${r.party} people · ${r.occasion}</b></div>
+        <div class="vp-cell"><small>Night total</small><b>$${r.price.toLocaleString()}</b></div>
+        <div class="vp-cell"><small>Deposit collected</small><b>$${r.dep.toLocaleString()}</b></div>
+        ${r.extras ? `<div class="vp-cell"><small>Added</small><b>${r.extras}</b></div>` : ""}
+        ${r.sign ? `<div class="vp-cell"><small>LED sign</small><b>"${r.sign}"</b></div>` : ""}
+      </div>
+      <div class="vp-req-foot">
+        <p>Paid and booked by the customer. Confirming locks the night; declining refunds their deposit in full, instantly.</p>
+        ${r.decided
+          ? `<span class="vp-decided ${r.decided === "ok" ? "ok" : "no"}">${r.decided === "ok" ? "Confirmed · customer notified" : "Declined · refunded instantly"}</span>`
+          : `<div class="vp-req-btns">
+               <button type="button" class="vp-decline" data-id="${r.id}" data-act="no">Decline</button>
+               <button type="button" class="vp-confirm" data-id="${r.id}" data-act="ok">Confirm booking</button>
+             </div>`}
+      </div>
+    </div>`).join("");
+  $("vpReqs").querySelectorAll("[data-act]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const r = REQS.find((x) => x.id === b.dataset.id);
+      r.decided = b.dataset.act;
+      renderReqs(); renderStats();
+      toast(r.decided === "ok" ? `${r.who} is confirmed. They just got the text.` : `${r.who} was refunded in full.`);
+    })
+  );
+}
+
+function renderLineup() {
+  $("vpLineup").innerHTML = LINEUP.map((l) => `
+    <div class="vp-line">
+      <time>${l.time}</time>
+      <div class="vp-line-main"><b>${l.who}</b><span>${l.pkg}</span></div>
+      <span class="vp-line-dep">${l.dep}</span>
+    </div>`).join("");
+}
+
+$("vpDateLine").textContent = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) + " · here's your night at a glance";
+
+/* ---- calendar: open / blocked / booked nights ---- */
+let calY = new Date().getFullYear(), calM = new Date().getMonth();
+const blocked = new Set();
+const bookedDays = {}; // iso -> count, seeded below for the visible month
+
+// local-time iso; toISOString would shift Orlando dates to the previous UTC day
+function isoLocal(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+
+function seedBookings(y, m) {
+  // deterministic demo bookings: most Fridays + Saturdays carry a few
+  for (let d = 1; d <= new Date(y, m + 1, 0).getDate(); d++) {
+    const dt = new Date(y, m, d), iso = isoLocal(dt);
+    if (iso in bookedDays) continue;
+    const wd = dt.getDay();
+    if (wd === 5) bookedDays[iso] = 2 + (d % 3);
+    else if (wd === 6) bookedDays[iso] = 3 + (d % 2);
+    else if (wd === 4 && d % 2 === 0) bookedDays[iso] = 1;
+  }
+}
+
+function nightPrice(dt) {
+  const wd = dt.getDay();
+  const base = 600; // Standard table base; the whole card scales from here
+  const f = wd === 5 || wd === 6 ? 1.28 : wd === 4 ? 1.08 : wd === 0 ? 1.0 : 0.82;
+  return Math.round((base * f) / 25) * 25;
+}
+
+function renderCal() {
+  seedBookings(calY, calM);
+  const first = new Date(calY, calM, 1);
+  const days = new Date(calY, calM + 1, 0).getDate();
+  const todayIso = isoLocal(new Date());
+  $("vpCalMonth").textContent = first.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  let html = "";
+  for (let i = 0; i < first.getDay(); i++) html += `<div class="vp-day empty"></div>`;
+  for (let d = 1; d <= days; d++) {
+    const dt = new Date(calY, calM, d), iso = isoLocal(dt);
+    const past = iso < todayIso;
+    const bk = bookedDays[iso] || 0;
+    const isBlocked = blocked.has(iso);
+    html += `<button type="button" class="vp-day${past ? " past" : ""}${isBlocked ? " blocked" : ""}" data-iso="${iso}" ${past ? "disabled" : ""}>
+      <i>${d}</i>
+      <small>${isBlocked ? "Blocked" : "$" + nightPrice(dt)}</small>
+      ${bk && !isBlocked ? `<span class="vp-bknum">${bk}</span>` : ""}
+    </button>`;
+  }
+  $("vpCalGrid").innerHTML = html;
+  $("vpCalGrid").querySelectorAll(".vp-day[data-iso]:not(.past)").forEach((b) =>
+    b.addEventListener("click", () => {
+      const iso = b.dataset.iso;
+      if (bookedDays[iso] && !blocked.has(iso)) { toast("That night has bookings. Handle those first."); return; }
+      if (blocked.has(iso)) { blocked.delete(iso); toast("Night reopened. Customers can book it again."); }
+      else { blocked.add(iso); toast("Night blocked. It won't show as bookable."); }
+      renderCal();
+    })
+  );
+}
+$("vpCalPrev").addEventListener("click", () => { calM--; if (calM < 0) { calM = 11; calY--; } renderCal(); });
+$("vpCalNext").addEventListener("click", () => { calM++; if (calM > 11) { calM = 0; calY++; } renderCal(); });
+
+/* ---- pricing ---- */
+const PKGS = [
+  { name: "Standard table", cap: "up to 6 guests", price: 600, dep: 20, sign: false },
+  { name: "Dancefloor table", cap: "up to 10 guests", price: 900, dep: 20, sign: false },
+  { name: "VIP booth", cap: "up to 15 guests", price: 1200, dep: 25, sign: true },
+  { name: "Full venue buyout", cap: "whole venue", price: 6000, dep: 20, sign: true },
+  { name: "Premium buyout", cap: "whole venue and extras", price: 9000, dep: 25, sign: true },
+];
+
+function renderPkgs() {
+  $("vpPkgs").innerHTML = PKGS.map((p, i) => `
+    <div class="vp-pkg">
+      <div class="vp-pkg-main"><b>${p.name}</b><span>${p.cap}</span></div>
+      <div><label>Base price</label>
+        <div class="vp-price-in"><span>$</span><input type="number" step="25" min="0" value="${p.price}" data-i="${i}" /></div>
+      </div>
+      <div><label>Deposit</label>
+        <select data-dep="${i}">
+          ${[15, 20, 25, 30].map((d) => `<option value="${d}"${d === p.dep ? " selected" : ""}>${d}%</option>`).join("")}
+        </select>
+      </div>
+      <label class="vp-sign-toggle"><input type="checkbox" data-sign="${i}"${p.sign ? " checked" : ""} />LED sign included</label>
+    </div>`).join("");
+  $("vpPkgs").querySelectorAll("input[data-i]").forEach((inp) =>
+    inp.addEventListener("change", () => {
+      const p = PKGS[inp.dataset.i];
+      p.price = Math.max(0, parseInt(inp.value, 10) || 0);
+      toast(`${p.name} saved. Customers now see from $${Math.round((p.price * 0.82) / 25) * 25} midweek.`);
+    })
+  );
+  $("vpPkgs").querySelectorAll("select[data-dep]").forEach((sel) =>
+    sel.addEventListener("change", () => {
+      const p = PKGS[sel.dataset.dep];
+      p.dep = parseInt(sel.value, 10);
+      toast(`${p.name}: ${p.dep}% deposit saved.`);
+    })
+  );
+  $("vpPkgs").querySelectorAll("input[data-sign]").forEach((cb) =>
+    cb.addEventListener("change", () => {
+      const p = PKGS[cb.dataset.sign];
+      p.sign = cb.checked;
+      toast(`${p.name}: LED sign ${p.sign ? "included" : "offered as a +$50 add-on"}.`);
+    })
+  );
+}
+
+/* ---- listing ---- */
+$("vpSaveListing").addEventListener("click", () => toast("Listing updated. It's live for customers."));
+$("vpAddPhoto").addEventListener("click", () => toast("Photo upload comes with the real portal (demo)"));
+
+renderStats(); renderReqs(); renderLineup(); renderCal(); renderPkgs();
+</script>
+</body>
+</html>

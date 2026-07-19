@@ -995,7 +995,8 @@ function currentBooking() {
 function bindReqModal() {
   $("reqClose").addEventListener("click", () => $("reqBackdrop").classList.add("hidden"));
   $("reqBackdrop").addEventListener("click", (e) => { if (e.target === $("reqBackdrop")) $("reqBackdrop").classList.add("hidden"); });
-  $("reqSubmit").addEventListener("click", submitBooking);
+  $("reqSubmit").addEventListener("click", () => submitBooking("card"));
+  $("reqApplePay").addEventListener("click", () => submitBooking("applepay"));
 }
 
 /* ---- post-booking extras: personalize AFTER the card is charged ---- */
@@ -1061,16 +1062,24 @@ function openReqModal() {
   $("reqBackdrop").classList.remove("hidden");
 }
 
-function submitBooking() {
+function submitBooking(method = "card") {
   const cb = currentBooking();
   if (!cb) return;
   const { v, p, addons, total, deposit } = cb;
-  const btn = $("reqSubmit");
-  btn.classList.add("paying");
-  btn.firstChild.textContent = "Charging your card… ";
+  const btn = $("reqSubmit"), ap = $("reqApplePay");
+  btn.disabled = true; ap.disabled = true;
+  if (method === "applepay") {
+    ap.classList.add("paying");
+    $("apLabel").textContent = "Confirming with Face ID…";
+  } else {
+    btn.classList.add("paying");
+    btn.firstChild.textContent = "Charging your card… ";
+  }
 
   setTimeout(() => {
-    btn.classList.remove("paying");
+    btn.disabled = false; ap.disabled = false;
+    btn.classList.remove("paying"); ap.classList.remove("paying");
+    $("apLabel").textContent = "Book with";
     btn.firstChild.textContent = "Book this night ";
     state.booking = {
       venueId: v.id,
@@ -1084,6 +1093,7 @@ function submitBooking() {
       occasion: state.occasion,
       price: total,
       deposit: deposit,
+      payMethod: method, // "applepay" | "card"
       // split the deposit: organizer-guarantee model, never all-or-nothing.
       // Your card covers the full deposit; friends chip in by link; anything
       // unpaid at the cutoff stays on your card. Real version: Stripe, Phase 3.
@@ -1112,7 +1122,7 @@ function renderPending() {
   const declined = b.status === "declined";
   $("pendingCard").className = "pending card" + (declined ? " declined" : "");
   $("pendingCard").innerHTML = `
-    <div class="pending-badge ${declined ? "no" : ""}">${declined ? "Refunded" : "Booked · deposit charged"}</div>
+    <div class="pending-badge ${declined ? "no" : ""}">${declined ? "Refunded" : `Booked · ${b.payMethod === "applepay" ? "paid with Apple Pay" : "deposit charged"}`}</div>
     <h2 class="pending-title">${declined ? `${b.venueName} couldn't host that night` : `You're in at ${b.venueName}`}</h2>
     <p class="pending-sub">${declined
       ? "Your deposit was refunded in full, instantly. Pick another venue or another night."

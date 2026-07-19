@@ -1452,6 +1452,22 @@ body {
 @media (prefers-reduced-motion: reduce) { .vb-skel { animation: none; } }
 
 .vb-compare { display: block; margin: 12px auto 0; font-size: 0.8rem; }
+
+/* Apple Pay (demo: simulated, real one rides on Stripe in Phase 3) */
+.btn-applepay {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  width: 100%; height: 48px; margin-top: 14px;
+  border: 0; border-radius: var(--r-sm);
+  background: #000; color: #fff;
+  font-family: var(--font); font-size: 0.95rem; font-weight: 500;
+  cursor: pointer; transition: opacity 0.15s;
+}
+.btn-applepay:hover { opacity: 0.88; }
+.btn-applepay .ap-logo { width: 18px; height: 18px; fill: #fff; margin-top: -2px; }
+.btn-applepay .ap-word { font-weight: 600; font-size: 1.05rem; }
+.btn-applepay.paying .ap-logo, .btn-applepay.paying .ap-word { display: none; }
+.pay-or { display: flex; align-items: center; gap: 10px; color: var(--muted-soft); font-size: 0.72rem; margin: 12px 0 2px; }
+.pay-or::before, .pay-or::after { content: ""; flex: 1; height: 1px; background: var(--hairline); }
 .vb-close {
   font-family: var(--font); font-weight: 600; font-size: 0.88rem;
   color: #fff; background: var(--ink); border: 0; border-radius: var(--r-sm);

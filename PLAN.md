@@ -48,6 +48,15 @@ quoting redundant. New features, all simulated in the demo:
   on other tables, billed at the venue. "AI ideas" are canned templates in
   the demo; production swaps in a small Claude call.
 - **Temp real photos** on three venues (see launch blocker in long-lead items).
+- **Apple Pay at checkout** (simulated): the black Apple Pay button books in one
+  tap next to the card option. The real one rides on Stripe's Payment Request
+  in Phase 3 (needs the domain verified + HTTPS, no extra fees).
+- **Venue portal preview at `promoter.html`**: a standalone page showing venues
+  their whole side: Today (paid bookings to confirm/decline, tonight's lineup),
+  an availability calendar with night blocking, a pricing/packages editor,
+  earnings with the 10%-out-of-deposit flow and payout history, and a listing
+  editor. This is the second half of the sales pitch; it becomes the real
+  Supabase-backed dashboard in Phase 2.
 
 ## Decisions
 
