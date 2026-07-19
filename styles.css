@@ -1305,3 +1305,88 @@ body {
 .extras-sub { color: var(--muted); font-size: 0.85rem; margin: 4px 0 16px; }
 .extras .sign-field { margin-bottom: 0; }
 .pending-extras .split { margin-bottom: 0; background: var(--canvas); }
+
+/* ---------- venue page: Airbnb listing layout ---------- */
+.vd-titlebar { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.vd-titlebar .vd-name { font-size: clamp(1.5rem, 3.4vw, 1.75rem); font-weight: 700; letter-spacing: -0.03em; }
+.vd-actions { display: flex; gap: 6px; }
+.vd-action {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--font); font-weight: 600; font-size: 0.86rem; color: var(--ink);
+  background: none; border: 0; border-radius: var(--r-sm);
+  padding: 8px 10px; cursor: pointer; text-decoration: underline;
+  transition: background 0.15s;
+}
+.vd-action:hover { background: var(--surface-soft); }
+.vd-action svg { width: 16px; height: 16px; }
+.vd-action.saved svg path { fill: var(--rausch); stroke: var(--rausch); }
+
+.vd-mosaic {
+  position: relative;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  height: clamp(280px, 38vw, 430px);
+  border-radius: var(--r-md); overflow: hidden;
+}
+.vm-hero { position: relative; display: grid; place-items: center; background-size: cover; background-position: center; }
+.vm-right { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; }
+.vm-tile { background-size: cover; background-position: center; }
+.vm-all {
+  position: absolute; right: 16px; bottom: 16px;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font); font-weight: 600; font-size: 0.82rem; color: var(--ink);
+  background: var(--canvas); border: 1px solid var(--ink); border-radius: var(--r-sm);
+  padding: 7px 12px; cursor: pointer;
+}
+.vm-all svg { width: 14px; height: 14px; fill: var(--ink); }
+.vm-all:hover { background: var(--surface-soft); }
+
+.vd-cols { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: clamp(24px, 4.5vw, 60px); margin-top: 26px; align-items: start; }
+.vd-left { min-width: 0; padding-bottom: 80px; }
+.vd-sub2 h2 { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.02em; }
+.vd-sub2 p { color: var(--muted); font-size: 0.92rem; margin-top: 2px; }
+
+.vd-favbox {
+  display: grid; grid-template-columns: auto 1fr auto auto;
+  align-items: center; gap: 20px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  padding: 18px 22px;
+  margin-top: 18px;
+}
+.favbox-title b { font-size: 1rem; font-weight: 700; line-height: 1.15; letter-spacing: -0.02em; }
+.favbox-copy { color: var(--body); font-size: 0.9rem; max-width: 26ch; }
+.favbox-rating { text-align: center; padding: 0 12px; border-left: 1px solid var(--hairline-soft); }
+.favbox-rating b { display: block; font-size: 1.15rem; font-weight: 700; }
+.favbox-stars svg { width: 10px; height: 10px; fill: var(--ink); }
+.favbox-reviews { text-align: center; padding-left: 12px; border-left: 1px solid var(--hairline-soft); }
+.favbox-reviews b { display: block; font-size: 1.15rem; font-weight: 700; }
+.favbox-reviews span { font-size: 0.72rem; color: var(--muted); text-decoration: underline; }
+.vd-ratingline { display: flex; align-items: center; gap: 6px; margin-top: 16px; font-size: 0.95rem; }
+.vd-ratingline svg { width: 14px; height: 14px; fill: var(--ink); }
+
+.vd-book { position: sticky; top: 92px; }
+.vd-book-card {
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  padding: 20px;
+  background: var(--canvas);
+}
+.vb-price b { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
+.vb-price span { color: var(--muted); font-size: 0.88rem; }
+.vb-meta { color: var(--muted); font-size: 0.84rem; margin: 4px 0 12px; }
+.vd-book-card .vd-cal { max-width: none; }
+.vd-book-card .cal-cell.priced { min-height: 52px; }
+.vb-hint { display: block; font-size: 0.74rem; color: var(--muted-soft); margin: 8px 0 12px; }
+.vd-book-card .btn-big { width: 100%; }
+.vb-dep { text-align: center; font-size: 0.82rem; color: var(--body); font-weight: 500; margin-top: 10px; }
+.vb-fine { text-align: center; font-size: 0.72rem; color: var(--muted-soft); margin-top: 8px; line-height: 1.5; }
+
+@media (max-width: 900px) {
+  .vd-cols { grid-template-columns: 1fr; }
+  .vd-book { position: static; }
+  .vd-left { padding-bottom: 0; }
+  .vd-mosaic { height: clamp(240px, 52vw, 340px); }
+  .vm-right { display: none; }
+  .vd-mosaic { grid-template-columns: 1fr; }
+}

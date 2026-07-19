@@ -550,7 +550,6 @@ function renderCompare() {
 
 function bindVenue() {
   $("venueBack").addEventListener("click", () => showScreen("browse"));
-  $("bfRequest").addEventListener("click", openReqModal);
 }
 
 function openVenue(id) {
@@ -571,14 +570,7 @@ function syncNight() {
 }
 
 const AMENITY_POOL = ["Full bar", "Bottle service", "Coat check", "Premium sound system", "Skip-the-line entry", "Card and cash", "Outdoor area", "Private restrooms"];
-const SHOT_NAMES = ["Main room", "The bar", "VIP area", "The floor"];
 
-function galleryShots(v) {
-  return SHOT_NAMES.map((name, i) => {
-    const angle = 120 + i * 35;
-    return `<figure class="vd-shot" style="${photoBg(v, i + 1, angle)}"><figcaption>${name}</figcaption></figure>`;
-  }).join("");
-}
 function venueBlurb(v) {
   const t = v.tags.split(" · ");
   return `${v.name} is a ${t[0].toLowerCase()} spot in ${v.area}${t[1] ? `, known for ${t[1].toLowerCase()}` : ""}. Reserve a table or take the whole room, then lock your night below.`;
@@ -588,6 +580,13 @@ function venueAmenities(v) {
   return [...new Set([...fromTags, ...AMENITY_POOL])].slice(0, 6);
 }
 function venueCapacity(v) { return `Up to ${roundTo(v.buyout[1] / 40, 10)} guests`; }
+
+// deterministic fake review count for the demo (real reviews come with real venues)
+function reviewsOf(v) {
+  let s = 0;
+  for (const ch of v.id) s += ch.charCodeAt(0);
+  return 46 + (s % 180);
+}
 
 let calY, calM; // month shown in the venue night calendar
 
@@ -615,45 +614,92 @@ function renderVenue() {
     </div>`).join("");
 
   const ph = venuePhotos(v);
+  const kind = v.tags.split(" · ")[0];
   $("venueDetail").innerHTML = `
     <div class="vd">
-      <div class="vd-hero" style="${photoBg(v, 0)}">
-        ${ph ? "" : `<span class="vd-glyph">${v.glyph}</span>`}
-        ${v.fav ? `<span class="v-fav">Guest favorite</span>` : ""}
-      </div>
-      <div class="vd-gallery">${galleryShots(v)}</div>
-      ${ph ? `<p class="vd-photo-credit">Demo photos: ${ph.credit} (temporary stand-ins, replaced with licensed photos before launch)</p>` : ""}
-      <div class="vd-head">
-        <div>
-          <div class="vd-name">${v.name}</div>
-          <p class="vd-sub">${v.area} · ${v.tags}</p>
+      <div class="vd-titlebar">
+        <h1 class="vd-name">${v.name}</h1>
+        <div class="vd-actions">
+          <button type="button" class="vd-action" id="vdShare">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M12 3l-4 4M12 3l4 4M5 13v6h14v-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Share
+          </button>
+          <button type="button" class="vd-action" id="vdSave">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 28C7.9 22.7 3 17.9 3 12.4 3 8.3 6.3 5 10.4 5c2.4 0 4.6 1.1 6 2.9C17.7 6.1 19.9 5 22.3 5 26.4 5 29 8.3 29 12.4c0 5.5-4.9 10.3-13 15.6z" fill="none" stroke="currentColor" stroke-width="2.4"/></svg>
+            Save
+          </button>
         </div>
-        <span class="v-rating">${starSvg()} ${v.rating.toFixed(2)}</span>
-      </div>
-      <p class="vd-blurb">${venueBlurb(v)}</p>
-      <div class="vd-facts">
-        <div><small>Capacity</small><b>${venueCapacity(v)}</b></div>
-        <div><small>Hours</small><b>9:00 PM to 2:00 AM</b></div>
-        <div><small>Neighborhood</small><b>${v.area}</b></div>
-        <div><small>Your night</small><b>${state.party} people · ${state.occasion} <button type="button" class="venue-night-edit" id="venueEdit">Edit</button></b></div>
-      </div>
-      <div class="vd-amen">
-        <h3>What's here</h3>
-        <ul class="vd-amen-list">${venueAmenities(v).map((a) => `<li>${a}</li>`).join("")}</ul>
       </div>
 
-      <h2 class="venue-section">Choose what to book</h2>
-      <div class="pkgs">${pkgHtml}</div>
+      <div class="vd-mosaic">
+        <div class="vm-hero" style="${photoBg(v, 0)}">${ph ? "" : `<span class="vd-glyph">${v.glyph}</span>`}</div>
+        <div class="vm-right">
+          <div class="vm-tile" style="${photoBg(v, 1, 130)}"></div>
+          <div class="vm-tile" style="${photoBg(v, 2, 155)}"></div>
+          <div class="vm-tile" style="${photoBg(v, 3, 180)}"></div>
+          <div class="vm-tile" style="${photoBg(v, 4, 205)}"></div>
+        </div>
+        <button type="button" class="vm-all" id="vdAllPhotos">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="5" r="1.6"/><circle cx="12" cy="5" r="1.6"/><circle cx="19" cy="5" r="1.6"/><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/><circle cx="5" cy="19" r="1.6"/><circle cx="12" cy="19" r="1.6"/><circle cx="19" cy="19" r="1.6"/></svg>
+          Show all photos
+        </button>
+      </div>
+      ${ph ? `<p class="vd-photo-credit">Demo photos: ${ph.credit} (temporary stand-ins, replaced with licensed photos before launch)</p>` : ""}
 
-      <div id="vdAddons"></div>
+      <div class="vd-cols">
+        <div class="vd-left">
+          <div class="vd-sub2">
+            <h2>${kind} in ${v.area}, ${state.city}</h2>
+            <p>${venueCapacity(v)} · 9:00 PM to 2:00 AM · ${v.tags}</p>
+          </div>
 
-      <div class="vd-deals">
-        <div class="vd-deals-head"><h3>Pick your night</h3><span id="vdDealsHint"></span></div>
-        <div class="vd-cal" id="vdCal"></div>
+          ${v.fav ? `
+          <div class="vd-favbox">
+            <div class="favbox-title"><b>Guest<br>favorite</b></div>
+            <p class="favbox-copy">One of the most loved venues on BookOut, according to guests</p>
+            <div class="favbox-rating"><b>${v.rating.toFixed(2)}</b><span class="favbox-stars">${starSvg()}${starSvg()}${starSvg()}${starSvg()}${starSvg()}</span></div>
+            <div class="favbox-reviews"><b>${reviewsOf(v)}</b><span>Reviews</span></div>
+          </div>` : `
+          <div class="vd-ratingline">${starSvg()} <b>${v.rating.toFixed(2)}</b> · ${reviewsOf(v)} reviews</div>`}
+
+          <p class="vd-blurb">${venueBlurb(v)}</p>
+
+          <div class="vd-amen">
+            <h3>What's here</h3>
+            <ul class="vd-amen-list">${venueAmenities(v).map((a) => `<li>${a}</li>`).join("")}</ul>
+          </div>
+
+          <h2 class="venue-section">Choose what to book</h2>
+          <div class="pkgs">${pkgHtml}</div>
+
+          <div id="vdAddons"></div>
+        </div>
+
+        <aside class="vd-book">
+          <div class="vd-book-card">
+            <div class="vb-price" id="vbPrice"></div>
+            <div class="vb-meta">${state.party} people · ${state.occasion} <button type="button" class="venue-night-edit" id="venueEdit">Edit</button></div>
+            <div class="vd-cal" id="vdCal"></div>
+            <span class="vb-hint" id="vdDealsHint"></span>
+            <button type="button" class="btn-primary btn-big" id="bfRequest" disabled>Book this night</button>
+            <div class="vb-dep" id="vbDep"></div>
+            <p class="vb-fine">Deposit charged now and credited to your bill. Refunded in full, instantly, if the club can't host you.</p>
+          </div>
+        </aside>
       </div>
     </div>`;
 
   $("venueEdit").addEventListener("click", () => showScreen("browse"));
+  $("bfRequest").addEventListener("click", openReqModal);
+  $("vdShare").addEventListener("click", () => {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(`https://bkout.app/v/${v.id}`);
+    toast("Link copied. Send it to the group chat.");
+  });
+  $("vdSave").addEventListener("click", (e) => {
+    e.currentTarget.classList.toggle("saved");
+    toast(e.currentTarget.classList.contains("saved") ? `${v.name} saved` : `${v.name} removed from saves`);
+  });
+  $("vdAllPhotos").addEventListener("click", () => toast("Full photo sets arrive with each venue's press kit (demo)"));
   $("venueDetail").querySelectorAll(".pkg").forEach((btn) =>
     btn.addEventListener("click", () => selectPackage(btn.dataset.pkg))
   );
@@ -715,7 +761,7 @@ function renderAddons() {
       const next = Math.min(8, Math.max(0, (state.addons[id] || 0) + Number(btn.dataset.step)));
       if (next === 0) delete state.addons[id]; else state.addons[id] = next;
       renderAddons();
-      updateVenueFooter();
+      updateBookCard();
     })
   );
 }
@@ -763,21 +809,22 @@ function renderVenueCalendar() {
     ? `Your dates ${fmtShort(r.start)} to ${fmtShort(r.end)} are highlighted. Cheapest nights are ringed.`
     : "Highlighted nights are cheapest. Midweek and booking early save the most.";
   renderAddons(); // add-on table prices follow the picked night
-  updateVenueFooter();
+  updateBookCard();
 }
 
-function updateVenueFooter() {
-  const footer = $("venueFooter");
+// the docked booking card: price for the picked night, book button state
+function updateBookCard() {
   const cb = currentBooking();
-  footer.classList.remove("hidden");
+  const v = venueById(state.currentVenueId);
   if (!cb) {
-    $("bfPrice").textContent = "Choose an option above";
-    $("bfDeposit").textContent = `${fmtDate(state.date)} selected`;
+    const from = priceForNight(pkgTypeBase(v, state.filter), state.date);
+    $("vbPrice").innerHTML = `<b>from ${usd.format(from)}</b> <span>for ${fmtDate(state.date)}</span>`;
+    $("vbDep").textContent = "Choose what to book on the left";
     $("bfRequest").disabled = true;
   } else {
     const n = cb.addons.reduce((s, a) => s + a.qty, 0);
-    $("bfPrice").textContent = `${cb.p.name}${n ? ` + ${n} table${n > 1 ? "s" : ""}` : ""} · ${usd.format(cb.total)}`;
-    $("bfDeposit").textContent = `${fmtDate(state.date)} · deposit ${usd.format(cb.deposit)}`;
+    $("vbPrice").innerHTML = `<b>${usd.format(cb.total)}</b> <span>${cb.p.name}${n ? ` + ${n} table${n > 1 ? "s" : ""}` : ""} · ${fmtDate(state.date)}</span>`;
+    $("vbDep").textContent = `${usd.format(cb.deposit)} deposit charged now, rest at the venue`;
     $("bfRequest").disabled = false;
   }
 }
