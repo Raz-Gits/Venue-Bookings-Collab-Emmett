@@ -100,11 +100,15 @@ const state = {
   booking: null,          // the live request-to-book: {venueId, pkg, ..., status}
 };
 
+// live price overrides set in the promoter dashboard (venueId -> tier -> base price):
+// the promoter edits a price, every customer surface re-derives from here instantly
+const PRICE_EDITS = {};
+
 // set prices/packages each venue lists upfront (book-and-approve model)
 // sign: "included" = LED table sign comes with it · "addon" = +$50, billed at the venue
 function venuePackages(v) {
   const t = v.band, b = v.buyout;
-  return [
+  const list = [
     { id: v.id + "-t1", type: "table", name: "Standard table", price: roundTo(t[0], 25), depPct: 20, cap: "up to 6 guests", sign: "addon",
       includes: ["Reserved table with bottle minimum", "Skip-the-line entry for your group"] },
     { id: v.id + "-t2", type: "table", name: "Dancefloor table", price: roundTo((t[0] + t[1]) / 2, 25), depPct: 20, cap: "up to 10 guests", sign: "addon",
@@ -116,6 +120,12 @@ function venuePackages(v) {
     { id: v.id + "-b2", type: "buyout", name: "Premium buyout", price: roundTo(b[1], 100), depPct: 25, cap: "whole venue and extras", sign: "included",
       includes: ["Entire venue and rooftop", "Custom production and staffing", "Security and coat check"] },
   ].map((p) => ({ ...p, deposit: roundTo((p.price * p.depPct) / 100, 10) }));
+  const o = PRICE_EDITS[v.id];
+  if (o) for (const p of list) {
+    const tier = p.id.split("-").pop();
+    if (o[tier] != null) { p.price = o[tier]; p.deposit = roundTo((p.price * p.depPct) / 100, 10); }
+  }
+  return list;
 }
 
 const SIGN_PRICE = 50; // LED sign add-on when not included; billed at the venue, not in the deposit
@@ -1378,6 +1388,12 @@ function bindPromoterApp() {
   $("pLogin").addEventListener("click", enterPromoterHome);
   $("pSkip").addEventListener("click", enterPromoterHome);
   $("pLogout").addEventListener("click", () => showScreen("city"));
+  // back and forth between the two sides, without logging out
+  $("pToCustomer").addEventListener("click", () => { renderRows(); showScreen("browse"); });
+  $("btnForVenues").addEventListener("click", () => {
+    if (PROMOTER.venue) enterPromoterHome(); // already "logged in": straight to the dashboard
+    else showScreen("plogin");
+  });
 }
 
 function enterPromoterHome(e) {
@@ -1394,7 +1410,33 @@ function initPromoterHome() {
   buildPRequests();
   renderPStats();
   renderPReqs();
+  renderPPricing();
   renderPRecent();
+}
+
+// the promoter edits base prices for their club; PRICE_EDITS feeds venuePackages,
+// so browse cards, compare, the floor map, and the booking card all update instantly
+function renderPPricing() {
+  const v = PROMOTER.venue;
+  if (!$("pPricing") || !v) return;
+  $("pPricing").innerHTML = venuePackages(v).map((p) => {
+    const tier = p.id.split("-").pop();
+    return `<div class="p-price-row">
+      <div class="p-price-main"><b>${p.name}</b><span>${p.cap} · ${p.depPct}% deposit</span></div>
+      <div class="p-price-edit">
+        <label class="p-price-in"><span>$</span><input type="number" step="25" min="0" value="${p.price}" data-tier="${tier}" aria-label="${p.name} base price" /></label>
+        <small>about ${usd.format(roundTo(p.price * 0.82, 25))} on a quiet night</small>
+      </div>
+    </div>`;
+  }).join("");
+  $("pPricing").querySelectorAll("input[data-tier]").forEach((inp) =>
+    inp.addEventListener("change", () => {
+      const val = Math.max(0, parseInt(inp.value, 10) || 0);
+      (PRICE_EDITS[v.id] = PRICE_EDITS[v.id] || {})[inp.dataset.tier] = val;
+      renderPPricing();
+      toast(`${v.name}: price saved. Customers see it now.`);
+    })
+  );
 }
 
 function buildPRequests() {

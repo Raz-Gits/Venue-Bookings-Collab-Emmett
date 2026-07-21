@@ -18,6 +18,7 @@
     bookout<i>◈</i>
   </div>
   <div class="topbar-right">
+    <button type="button" class="btn-textlink" id="btnForVenues">For venues</button>
     <span class="badge-demo">Demo · bookings simulated</span>
   </div>
 </header>
@@ -197,7 +198,7 @@
         <h1 class="plogin-title">Promoter log in</h1>
         <p class="plogin-sub">See incoming requests and send quotes for your venue.</p>
         <label class="field"><span>Email</span>
-          <input type="email" id="pEmail" value="me@neongarden.co" /></label>
+          <input type="email" id="pEmail" value="manager@eatdrinkbounce.com" /></label>
         <label class="field"><span>Password</span>
           <input type="password" id="pPass" value="demo1234" /></label>
         <button class="btn-primary btn-big" id="pLogin">Log in</button>
@@ -215,6 +216,8 @@
       <div class="p-brand">bookout<i>◈</i> <b>for venues</b></div>
       <div class="p-topbar-right">
         <span class="p-venue-name" id="pVenueName">Neon Garden</span>
+        <button type="button" class="btn-textlink" id="pToCustomer">Customer app</button>
+        <a class="btn-textlink" href="promoter.html">Full portal preview</a>
         <button type="button" class="btn-textlink" id="pLogout">Log out</button>
       </div>
     </div>
@@ -226,6 +229,9 @@
       <div class="p-stats" id="pStats"></div>
       <h2 class="p-section">Incoming requests</h2>
       <div class="p-reqs" id="pReqs"></div>
+      <h2 class="p-section">Your prices</h2>
+      <p class="p-hint">Base price per package for your club. Save a change and customers see it instantly, with nightly demand pricing on top.</p>
+      <div class="p-pricing" id="pPricing"></div>
       <h2 class="p-section">Recent bookings</h2>
       <div class="p-recent" id="pRecent"></div>
     </div>

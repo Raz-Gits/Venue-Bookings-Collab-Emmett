@@ -60,6 +60,11 @@ quoting redundant. New features, all simulated in the demo:
 - **Bounce House (Oviedo) added as the lead venue**: first in browse with
   temp photos from eatdrinkbounce.com, since they're the first pitch target
   (`pitch: true` flag controls ordering).
+- **In-app promoter price editor**: the promoter dashboard has a "Your prices"
+  section; edits go into a live override layer (`PRICE_EDITS`) that every
+  customer surface re-derives from, so changing a price updates browse,
+  compare, and booking instantly. Topbar links let you hop between the
+  customer app and the venue side without logging out.
 - **Venue portal preview at `promoter.html`**: a standalone page showing venues
   their whole side: Today (paid bookings to confirm/decline, tonight's lineup),
   an availability calendar with night blocking, a pricing/packages editor,
