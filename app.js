@@ -104,10 +104,26 @@ const state = {
 // the promoter edits a price, every customer surface re-derives from here instantly
 const PRICE_EDITS = {};
 
-// custom nights (venueId -> iso -> tier -> exact price): a promoter names an
-// exact price for a specific date (NYE, a guest DJ). It replaces the automatic
-// demand pricing for that night, package, and venue only.
-const DATE_PRICE_EDITS = {};
+// custom nights: venueId -> iso -> { price: {tier: exact$}, off: {tier: true}, extras: [pkg] }
+// A promoter opens one date and reprices, removes, or adds items for that night
+// only. Everything not touched keeps the automatic demand pricing.
+const NIGHT_EDITS = {};
+
+function nightEdit(vid, iso, make) {
+  const v = NIGHT_EDITS[vid] || (make ? (NIGHT_EDITS[vid] = {}) : null);
+  if (!v) return null;
+  return v[iso] || (make ? (v[iso] = { price: {}, off: {}, extras: [] }) : null);
+}
+// has this venue touched this night at all?
+function isCustomNight(v, iso) {
+  const n = nightEdit(v.id, iso);
+  return !!(n && (Object.keys(n.price).length || Object.keys(n.off).length || n.extras.length));
+}
+// drop an empty night so the dashboard list and calendar tags stay clean
+function pruneNight(vid, iso) {
+  const n = nightEdit(vid, iso);
+  if (n && !Object.keys(n.price).length && !Object.keys(n.off).length && !n.extras.length) delete NIGHT_EDITS[vid][iso];
+}
 
 // demo customer profile: in production this comes from the verified account
 // (or the Apple Pay contact card), never from typing at checkout
@@ -115,9 +131,11 @@ const DEMO_CUSTOMER = { name: "Riley Carter", phone: "(407) 555-0184" };
 
 // set prices/packages each venue lists upfront (book-and-approve model)
 // sign: "included" = LED table sign comes with it · "addon" = +$50, billed at the venue
-function venuePackages(v) {
+// Pass an iso date to get what this venue actually offers that night: custom
+// prices applied, removed items dropped, one-off items added.
+function venuePackages(v, iso) {
   const t = v.band, b = v.buyout;
-  const list = [
+  let list = [
     { id: v.id + "-t1", type: "table", name: "Standard table", price: roundTo(t[0], 25), depPct: 20, cap: "up to 6 guests", sign: "addon",
       includes: ["Reserved table with bottle minimum", "Skip-the-line entry for your group"] },
     { id: v.id + "-t2", type: "table", name: "Dancefloor table", price: roundTo((t[0] + t[1]) / 2, 25), depPct: 20, cap: "up to 10 guests", sign: "addon",
@@ -133,6 +151,17 @@ function venuePackages(v) {
   if (o) for (const p of list) {
     const tier = p.id.split("-").pop();
     if (o[tier] != null) { p.price = o[tier]; p.deposit = roundTo((p.price * p.depPct) / 100, 10); }
+  }
+
+  const n = iso ? nightEdit(v.id, iso) : null;
+  if (n) {
+    list = list.filter((p) => !n.off[tierOf(p)]);            // items the venue pulled that night
+    for (const p of list) {
+      const price = n.price[tierOf(p)];
+      if (price != null) { p.price = price; p.exact = true; } // priced by hand: no demand multiplier
+    }
+    for (const x of n.extras) list.push({ ...x, exact: true }); // one-off items for that night
+    for (const p of list) p.deposit = roundTo((p.price * p.depPct) / 100, 10);
   }
   return list;
 }
@@ -164,7 +193,7 @@ function suggestSigns(occasion, name) {
   return base.map((t) => t.replaceAll("{n}", n));
 }
 
-function packageById(v, id) { return venuePackages(v).find((p) => p.id === id); }
+function packageById(v, id, iso) { return venuePackages(v, iso).find((p) => p.id === id); }
 
 /* ============================================================
    Dynamic date pricing + shared calendar
@@ -264,21 +293,21 @@ function pkgTypeBase(v, type) {
 }
 // a custom night set by the venue wins; otherwise the automatic demand engine prices it
 function priceForNight(base, iso, v, tier) {
-  const custom = v && tier && DATE_PRICE_EDITS[v.id] && DATE_PRICE_EDITS[v.id][iso];
-  if (custom && custom[tier] != null) return custom[tier];
+  const n = v && tier ? nightEdit(v.id, iso) : null;
+  if (n && n.price[tier] != null) return n.price[tier];
   return roundTo(base * demandFactor(iso), 25);
 }
 function tierOf(p) { return p.id.split("-").pop(); }
 // what one package costs at one venue on one night
-function pkgPrice(v, p, iso) { return priceForNight(p.price, iso, v, tierOf(p)); }
+function pkgPrice(v, p, iso) {
+  if (p.exact) return p.price; // already priced by hand for this night
+  return priceForNight(p.price, iso, v, tierOf(p));
+}
 // the cheapest package of a type at a venue on a night (the "from" price)
 function typeMinOn(v, type, iso) {
-  return Math.min(...venuePackages(v).filter((p) => p.type === type).map((p) => pkgPrice(v, p, iso)));
-}
-// does this venue price this night by hand?
-function isCustomNight(v, iso) {
-  const d = DATE_PRICE_EDITS[v.id];
-  return !!(d && d[iso] && Object.keys(d[iso]).length);
+  const list = venuePackages(v, iso).filter((p) => p.type === type);
+  if (!list.length) return Infinity; // the venue pulled every item of this type that night
+  return Math.min(...list.map((p) => pkgPrice(v, p, iso)));
 }
 
 const $ = (id) => document.getElementById(id);
@@ -656,29 +685,40 @@ function reviewsOf(v) {
 
 let calY, calM; // month shown in the venue night calendar
 
-function renderVenue() {
+// what's bookable on the chosen night: re-rendered whenever the date changes,
+// so items a venue pulled for that night disappear and custom prices show
+function renderPkgList() {
+  const box = $("vdPkgs");
+  if (!box) return;
   const v = venueById(state.currentVenueId);
-  const pkgs = venuePackages(v);
+  const pkgs = venuePackages(v, state.date);
   const groups = [
     { label: "Full venue", list: pkgs.filter((p) => p.type === "buyout") },
     { label: "Tables", list: pkgs.filter((p) => p.type === "table") },
   ];
   if (state.type === "table") groups.reverse();
 
-  const pkgHtml = groups.map((g) => `
+  box.innerHTML = groups.filter((g) => g.list.length).map((g) => `
     <div class="pkg-group">
       <h3 class="pkg-group-title">${g.label}</h3>
       ${g.list.map((p) => `
-        <button type="button" class="pkg" data-pkg="${p.id}">
+        <button type="button" class="pkg${p.id === state.selectedPkgId ? " sel" : ""}" data-pkg="${p.id}">
           <span class="pkg-radio" aria-hidden="true"></span>
           <span class="pkg-main">
-            <span class="pkg-top"><b>${p.name}</b><span class="pkg-cap">${p.cap}</span></span>
+            <span class="pkg-top"><b>${p.name}</b><span class="pkg-cap">${p.cap}</span>${p.exact ? `<span class="pkg-special">Special night</span>` : ""}</span>
             <span class="pkg-inc">${p.includes.join(" · ")}</span>
           </span>
-          <span class="pkg-price"><b>from ${usd.format(p.price)}</b><span>price varies by night</span></span>
+          <span class="pkg-price"><b>${p.exact ? "" : "from "}${usd.format(pkgPrice(v, p, state.date))}</b><span>${p.exact ? `for ${fmtShort(state.date)}` : "price varies by night"}</span></span>
         </button>`).join("")}
     </div>`).join("");
 
+  box.querySelectorAll(".pkg").forEach((btn) =>
+    btn.addEventListener("click", () => selectPackage(btn.dataset.pkg))
+  );
+}
+
+function renderVenue() {
+  const v = venueById(state.currentVenueId);
   const ph = venuePhotos(v);
   const kind = v.tags.split(" · ")[0];
   $("venueDetail").innerHTML = `
@@ -736,7 +776,7 @@ function renderVenue() {
           </div>
 
           <h2 class="venue-section">Choose what to book</h2>
-          <div class="pkgs">${pkgHtml}</div>
+          <div class="pkgs" id="vdPkgs"></div>
 
           <div id="vdFloor"></div>
           <div id="vdAddons"></div>
@@ -826,7 +866,7 @@ function renderVenue() {
   $("vbCheapest").addEventListener("click", () => {
     const { start, end } = compareWindow();
     // real cheapest for this venue: custom nights count, not just the demand curve
-    const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
+    const p = state.selectedPkgId ? packageById(v, state.selectedPkgId, state.date) : null;
     const priceOn = (iso) => (p ? pkgPrice(v, p, iso) : typeMinOn(v, state.filter, iso));
     state.date = nightsInRange(start, end, 60).reduce((best, iso) => (priceOn(iso) < priceOn(best) ? iso : best), start);
     state.nightPicked = true;
@@ -858,9 +898,6 @@ function renderVenue() {
     toast(e.currentTarget.classList.contains("saved") ? `${v.name} saved` : `${v.name} removed from saves`);
   });
   $("vdAllPhotos").addEventListener("click", () => toast("Full photo sets arrive with each venue's press kit (demo)"));
-  $("venueDetail").querySelectorAll(".pkg").forEach((btn) =>
-    btn.addEventListener("click", () => selectPackage(btn.dataset.pkg))
-  );
 
   state.selectedPkgId = null;
   // start the calendar on the month of the chosen night (default from browse)
@@ -875,10 +912,9 @@ function renderVenue() {
 function selectPackage(pkgId) {
   state.selectedPkgId = pkgId;
   const v = venueById(state.currentVenueId);
-  const p = packageById(v, pkgId);
+  const p = packageById(v, pkgId, state.date);
   if (!p || p.type !== "buyout") state.addons = {}; // added tables only ride on a buyout
   syncTableToPkg(v, p); // auto-seat the best open table of this tier; map tap can change it
-  $("venueDetail").querySelectorAll(".pkg").forEach((b) => b.classList.toggle("sel", b.dataset.pkg === pkgId));
   renderVenueCalendar(); // prices update to the chosen package
   if (state.nightPicked) updateBookCardCalc(); // repricing an already-picked night gets the calculating beat too
 }
@@ -888,7 +924,7 @@ function selectPackage(pkgId) {
 // One demo floor plan shared by every venue; in production each venue uploads
 // their real map in the portal. Coordinates are % of the room. Tiers map to
 // packages: t1 Standard, t2 Dancefloor, t3 VIP booth.
-const FLOOR_TABLES = [
+const FLOOR_DEFAULT = [
   // VIP booths along the back wall, flanking the DJ
   { id: "B1", tier: "t3", shape: "booth", x: 3,  y: 3,  w: 16, h: 13 },
   { id: "B2", tier: "t3", shape: "booth", x: 21, y: 3,  w: 16, h: 13 },
@@ -907,8 +943,23 @@ const FLOOR_TABLES = [
   { id: "S3", tier: "t1", shape: "round", x: 39, y: 82, w: 7.5 },
   { id: "S4", tier: "t1", shape: "round", x: 51, y: 82, w: 7.5 },
   { id: "S5", tier: "t1", shape: "round", x: 63, y: 82, w: 7.5 },
-  { id: "S6", tier: "t1", shape: "round", x: 89, y: 45, w: 7.5 },
+  { id: "S6", tier: "t1", shape: "round", x: 75, y: 82, w: 7.5 },
 ];
+
+// Bounce House's real room: one booth, three floor tables, three standard
+// tables, all the round tables the same size. Bar runs down the right wall.
+const FLOOR_BOUNCE = [
+  { id: "B3", tier: "t3", shape: "booth", x: 63, y: 3,  w: 16, h: 13 },
+  { id: "D1", tier: "t2", shape: "round", x: 20, y: 28, w: 9 },
+  { id: "D2", tier: "t2", shape: "round", x: 20, y: 45, w: 9 },
+  { id: "D3", tier: "t2", shape: "round", x: 20, y: 62, w: 9 },
+  { id: "S2", tier: "t1", shape: "round", x: 27, y: 82, w: 9 },
+  { id: "S3", tier: "t1", shape: "round", x: 41, y: 82, w: 9 },
+  { id: "S4", tier: "t1", shape: "round", x: 55, y: 82, w: 9 },
+];
+
+const FLOOR_PLANS = { bounce: FLOOR_BOUNCE };
+function floorPlan(v) { return FLOOR_PLANS[v.id] || FLOOR_DEFAULT; }
 const TIER_NAME = { t1: "Standard", t2: "Dancefloor", t3: "VIP booth" };
 
 // deterministic per-venue-per-night availability; busier nights sell more tables
@@ -926,19 +977,20 @@ function tableTaken(v, iso, tid) {
 function syncTableToPkg(v, p) {
   if (!p || p.type !== "table") { state.tableId = null; return; }
   const tier = p.id.split("-").pop();
-  const cur = FLOOR_TABLES.find((t) => t.id === state.tableId);
+  const cur = floorPlan(v).find((t) => t.id === state.tableId);
   if (cur && cur.tier === tier && !tableTaken(v, state.date, cur.id)) return;
-  const open = FLOOR_TABLES.find((t) => t.tier === tier && !tableTaken(v, state.date, t.id));
+  const open = floorPlan(v).find((t) => t.tier === tier && !tableTaken(v, state.date, t.id));
   state.tableId = open ? open.id : null;
 }
 
 // tap a table on the map: it becomes yours, and the package follows its tier
 function pickTable(tid) {
   const v = venueById(state.currentVenueId);
-  const t = FLOOR_TABLES.find((x) => x.id === tid);
+  const t = floorPlan(v).find((x) => x.id === tid);
   if (!t || tableTaken(v, state.date, tid)) return;
-  state.tableId = tid;
   const pkgId = `${v.id}-${t.tier}`;
+  if (!packageById(v, pkgId, state.date)) return; // that tier isn't offered this night
+  state.tableId = tid;
   if (state.selectedPkgId !== pkgId) { selectPackage(pkgId); return; }
   renderFloor();
   updateBookCard();
@@ -948,7 +1000,7 @@ function renderFloor() {
   const box = $("vdFloor");
   if (!box) return;
   const v = venueById(state.currentVenueId);
-  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
+  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId, state.date) : null;
   if (p && p.type === "buyout") { box.innerHTML = ""; return; } // a buyout owns the whole room
 
   box.innerHTML = `
@@ -958,15 +1010,19 @@ function renderFloor() {
         <span>Tap an open table, movie-seat style. Availability follows your night; price follows the table's tier.</span>
       </div>
       <div class="floor-room">
-        <div class="floor-zone fz-dj">DJ</div>
-        <div class="floor-zone fz-bar">Bar</div>
-        <div class="floor-zone fz-dance">Dancefloor</div>
-        <div class="floor-zone fz-entry">Entry</div>
-        ${FLOOR_TABLES.map((t) => {
-          const taken = tableTaken(v, state.date, t.id);
+        <div class="floor-zone fz-dj"><span class="fz-decks" aria-hidden="true"><i></i><i></i></span>DJ</div>
+        <div class="floor-zone fz-bar">
+          <span class="fz-stools" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span class="fz-bar-label">Bar</span>
+        </div>
+        <div class="floor-zone fz-dance"><span class="fz-dance-label">Dancefloor</span></div>
+        <div class="floor-zone fz-entry"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h11M12 8l4 4-4 4M19 4v16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Entry</div>
+        ${floorPlan(v).map((t) => {
+          const pk = packageById(v, `${v.id}-${t.tier}`, state.date);
+          // no package for this tier tonight = the venue pulled it for this date
+          const taken = !pk || tableTaken(v, state.date, t.id);
           const sel = state.tableId === t.id;
-          const pk = packageById(v, `${v.id}-${t.tier}`);
-          const tip = `${t.id} · ${TIER_NAME[t.tier]}${taken ? " · taken" : ` · ${usd.format(pkgPrice(v, pk, state.date))} for ${fmtShort(state.date)}`}`;
+          const tip = `${t.id} · ${TIER_NAME[t.tier]}${!pk ? " · not offered this night" : taken ? " · taken" : ` · ${usd.format(pkgPrice(v, pk, state.date))} for ${fmtShort(state.date)}`}`;
           return `<button type="button"
             class="floor-t ${t.shape}${sel ? " sel" : ""}${taken ? " taken" : ""}"
             style="left:${t.x}%;top:${t.y}%;width:${t.w}%;${t.shape === "booth" ? `height:${t.h}%;` : ""}"
@@ -991,10 +1047,10 @@ function renderAddons() {
   const box = $("vdAddons");
   if (!box) return;
   const v = venueById(state.currentVenueId);
-  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
+  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId, state.date) : null;
   if (!p || p.type !== "buyout") { box.innerHTML = ""; return; }
 
-  const tables = venuePackages(v).filter((x) => x.type === "table");
+  const tables = venuePackages(v, state.date).filter((x) => x.type === "table");
   box.innerHTML = `
     <div class="vd-addons">
       <div class="vd-addons-head">
@@ -1031,8 +1087,9 @@ function renderAddons() {
 
 function renderVenueCalendar() {
   const v = venueById(state.currentVenueId);
-  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
-  const base = p ? p.price : pkgTypeBase(v, state.type);
+  // an item the venue pulled for this night can't stay selected
+  if (state.selectedPkgId && !packageById(v, state.selectedPkgId, state.date)) state.selectedPkgId = null;
+  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId, state.date) : null;
   const todayIso = isoOf(new Date());
   const { startWd, days } = monthMeta(calY, calM);
 
@@ -1082,6 +1139,7 @@ function renderVenueCalendar() {
         : "Midweek and booking early cost less.");
   const sp = $("vbShowPrices");
   if (sp) sp.textContent = showP ? "Hide nightly prices" : "Show nightly prices";
+  renderPkgList(); // what's offered (and at what price) can change per night
   renderAddons(); // add-on table prices follow the picked night
   syncTableToPkg(v, p); // the night changed: re-roll table availability
   renderFloor();
@@ -1090,7 +1148,7 @@ function renderVenueCalendar() {
 
 // the venue's cheapest upcoming night, for the "From $X / night" header before a night is picked
 function venueFromPrice(v) {
-  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
+  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId, state.date) : null;
   const { start, end } = compareWindow();
   const priceOn = (iso) => (p ? pkgPrice(v, p, iso) : typeMinOn(v, state.filter, iso));
   return nightsInRange(start, end, 60).reduce((min, iso) => Math.min(min, priceOn(iso)), Infinity);
@@ -1134,13 +1192,13 @@ function updateBookCardCalc() {
 // the price + deposit for the current package (plus any added tables) on the current night
 function currentBooking() {
   const v = venueById(state.currentVenueId);
-  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
+  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId, state.date) : null;
   if (!p) return null;
   const base = pkgPrice(v, p, state.date);
   let deposit = (base * p.depPct) / 100;
   const addons = [];
   if (p.type === "buyout") {
-    for (const t of venuePackages(v).filter((x) => x.type === "table")) {
+    for (const t of venuePackages(v, state.date).filter((x) => x.type === "table")) {
       const qty = state.addons[t.id] || 0;
       if (!qty) continue;
       const each = pkgPrice(v, t, state.date);
@@ -1436,8 +1494,8 @@ function enterPromoterHome(e) {
 }
 
 function initPromoterHome() {
-  // if the customer has a live request, you are that venue's promoter
-  PROMOTER.venue = state.booking ? venueById(state.booking.venueId) : VENUES[0];
+  // pinned to the pitch venue for now: this is the dashboard we demo to Bounce House
+  PROMOTER.venue = venueById("bounce");
   $("pVenueName").textContent = PROMOTER.venue.name;
   $("pGreet").textContent = `Welcome back, ${PROMOTER.venue.name}`;
   buildPRequests();
@@ -1448,70 +1506,160 @@ function initPromoterHome() {
   renderPRecent();
 }
 
-/* ---- custom nights: name an exact price for one date (NYE, a guest DJ) ---- */
+/* ---- custom nights: click a date, then reprice, remove, or add items ---- */
 
-// the date the promoter is editing in the custom-night row
-let pDateIso = "";
+let pDateIso = "";            // the night open in the editor
+let pCalY, pCalM;             // month shown in the dashboard calendar
+let pExtraSeq = 0;            // ids for one-off items the venue adds
 
 function renderPDates() {
   const v = PROMOTER.venue;
-  if (!$("pDateList") || !v) return;
-  if (!pDateIso) pDateIso = isoAddDays(isoOf(new Date()), 14);
-  $("pDateInput").value = pDateIso;
-  $("pDateInput").min = isoOf(new Date());
+  if (!$("pCal") || !v) return;
+  const todayIso = isoOf(new Date());
+  if (pCalY == null) { const n = new Date(); pCalY = n.getFullYear(); pCalM = n.getMonth(); }
 
-  // the two prices that matter most, kept deliberately short: a table and the venue
-  const editable = venuePackages(v).filter((p) => p.id.endsWith("-t3") || p.id.endsWith("-b1"));
-  const cur = (DATE_PRICE_EDITS[v.id] || {})[pDateIso] || {};
-  $("pDateFields").innerHTML = editable.map((p) => {
-    const tier = tierOf(p);
-    const auto = roundTo(p.price * demandFactor(pDateIso), 25);
-    return `<label class="p-date-field">
-      <span>${p.name}</span>
-      <span class="p-price-in"><span>$</span><input type="number" step="25" min="0" placeholder="${auto}" value="${cur[tier] != null ? cur[tier] : ""}" data-dtier="${tier}" aria-label="${p.name} price for this night" /></span>
-      <small>${cur[tier] != null ? `normally ${usd.format(auto)}` : `auto: ${usd.format(auto)}`}</small>
-    </label>`;
-  }).join("");
+  // month grid: tap any night to open it
+  const { startWd, days } = monthMeta(pCalY, pCalM);
+  let cells = "";
+  for (let i = 0; i < startWd; i++) cells += `<div class="p-cal-cell empty"></div>`;
+  for (let d = 1; d <= days; d++) {
+    const iso = isoOf(new Date(pCalY, pCalM, d));
+    const past = iso < todayIso;
+    const custom = isCustomNight(v, iso);
+    const price = past ? null : typeMinOn(v, "table", iso);
+    cells += `<button type="button" class="p-cal-cell${past ? " past" : ""}${custom ? " custom" : ""}${iso === pDateIso ? " on" : ""}" data-iso="${iso}" ${past ? "disabled" : ""}>
+      <i>${d}</i>
+      <small>${past ? "" : (price === Infinity ? "Closed" : "from " + compactMoney(price))}</small>
+      ${custom ? `<span class="p-cal-dot" aria-hidden="true"></span>` : ""}
+    </button>`;
+  }
+  $("pCal").innerHTML = `
+    <div class="p-cal-head">
+      <b>${monthLabel(pCalY, pCalM)}</b>
+      <span class="p-cal-nav">
+        <button type="button" data-pcal="prev" aria-label="Previous month">‹</button>
+        <button type="button" data-pcal="next" aria-label="Next month">›</button>
+      </span>
+    </div>
+    <div class="p-cal-dow"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+    <div class="p-cal-grid">${cells}</div>`;
 
-  const all = DATE_PRICE_EDITS[v.id] || {};
-  const isos = Object.keys(all).filter((k) => Object.keys(all[k]).length).sort();
-  $("pDateList").innerHTML = isos.length
-    ? isos.map((iso) => {
-        const names = Object.keys(all[iso]).map((t) => `${venuePackages(v).find((p) => tierOf(p) === t).name} ${usd.format(all[iso][t])}`).join(" · ");
-        return `<div class="p-date-row">
-          <div><b>${fmtDate(iso)}</b><span>${names}</span></div>
-          <button type="button" class="btn-textlink" data-clear="${iso}">Remove</button>
+  $("pCal").querySelector('[data-pcal="prev"]').addEventListener("click", () => { pCalM--; if (pCalM < 0) { pCalM = 11; pCalY--; } renderPDates(); });
+  $("pCal").querySelector('[data-pcal="next"]').addEventListener("click", () => { pCalM++; if (pCalM > 11) { pCalM = 0; pCalY++; } renderPDates(); });
+  $("pCal").querySelectorAll(".p-cal-cell[data-iso]:not(.past)").forEach((b) =>
+    b.addEventListener("click", () => { pDateIso = b.dataset.iso; renderPDates(); })
+  );
+
+  renderPNight();
+}
+
+// everything bookable on the chosen night, each row repriceable or removable
+function renderPNight() {
+  const v = PROMOTER.venue, box = $("pNight");
+  if (!box || !v) return;
+  if (!pDateIso) {
+    box.innerHTML = `<p class="p-date-empty">Pick a night on the calendar to set prices just for that date, pull items you're not offering, or add a one-off like a New Year's package.</p>`;
+    return;
+  }
+  const n = nightEdit(v.id, pDateIso);
+  const offered = venuePackages(v, pDateIso);
+  const pulled = venuePackages(v).filter((p) => n && n.off[tierOf(p)]);
+
+  box.innerHTML = `
+    <div class="p-night-head">
+      <div>
+        <b>${fmtDate(pDateIso)}</b>
+        <span>${isCustomNight(v, pDateIso) ? "Custom night. Customers see exactly these prices." : "Automatic pricing. Change anything below to make it a custom night."}</span>
+      </div>
+      ${isCustomNight(v, pDateIso) ? `<button type="button" class="btn-textlink" id="pNightReset">Reset to automatic</button>` : ""}
+    </div>
+
+    <div class="p-night-items">
+      ${offered.map((p) => {
+        const tier = tierOf(p), auto = roundTo(p.price * demandFactor(pDateIso), 25);
+        const set = n && n.price[tier] != null;
+        return `<div class="p-night-item${p.extra ? " is-extra" : ""}">
+          <div class="p-night-main"><b>${p.name}</b><span>${p.cap}${p.extra ? " · added for this night" : ` · auto ${usd.format(auto)}`}</span></div>
+          <label class="p-price-in"><span>$</span><input type="number" step="25" min="0" placeholder="${auto}" value="${set || p.extra ? p.price : ""}" data-ntier="${tier}" aria-label="${p.name} price on ${fmtDate(pDateIso)}" /></label>
+          <button type="button" class="p-night-x" data-off="${tier}" aria-label="Remove ${p.name} from this night">Remove</button>
         </div>`;
-      }).join("")
-    : `<p class="p-date-empty">No custom nights yet. Every other night uses your base prices with automatic demand pricing.</p>`;
+      }).join("")}
+      ${pulled.map((p) => `
+        <div class="p-night-item pulled">
+          <div class="p-night-main"><b>${p.name}</b><span>Not offered this night</span></div>
+          <button type="button" class="btn-textlink" data-on="${tierOf(p)}">Put back</button>
+        </div>`).join("")}
+    </div>
 
-  $("pDateList").querySelectorAll("[data-clear]").forEach((b) =>
-    b.addEventListener("click", () => {
-      delete DATE_PRICE_EDITS[v.id][b.dataset.clear];
+    <div class="p-night-add">
+      <input type="text" id="pAddName" placeholder="Add an item, e.g. NYE package" aria-label="New item name" />
+      <label class="p-price-in"><span>$</span><input type="number" step="25" min="0" id="pAddPrice" placeholder="1200" aria-label="New item price" /></label>
+      <select id="pAddType" aria-label="Item type">
+        <option value="table">Table</option>
+        <option value="buyout">Full venue</option>
+      </select>
+      <button type="button" class="btn-primary" id="pAddItem">Add item</button>
+    </div>`;
+
+  // reprice one item for this night only
+  box.querySelectorAll("input[data-ntier]").forEach((inp) =>
+    inp.addEventListener("change", () => {
+      const tier = inp.dataset.ntier, val = parseInt(inp.value, 10);
+      const e = nightEdit(v.id, pDateIso, true);
+      const extra = e.extras.find((x) => tierOf(x) === tier);
+      if (Number.isFinite(val) && val > 0) {
+        if (extra) extra.price = val; else e.price[tier] = val;
+      } else if (extra) { inp.value = extra.price; return; } // an added item needs a price
+      else delete e.price[tier];
+      pruneNight(v.id, pDateIso);
       renderPDates();
-      toast("Custom night removed. That date is back to automatic pricing.");
+      toast(`${fmtDate(pDateIso)} updated. Customers see it on that night only.`);
     })
   );
-}
-
-function bindPDates() {
-  $("pDateInput").addEventListener("change", (e) => { pDateIso = e.target.value; renderPDates(); });
-  $("pDateSave").addEventListener("click", () => {
-    const v = PROMOTER.venue;
-    if (!v || !pDateIso) return;
-    const night = {};
-    $("pDateFields").querySelectorAll("input[data-dtier]").forEach((inp) => {
-      const val = parseInt(inp.value, 10);
-      if (Number.isFinite(val) && val > 0) night[inp.dataset.dtier] = val;
-    });
-    const store = (DATE_PRICE_EDITS[v.id] = DATE_PRICE_EDITS[v.id] || {});
-    if (Object.keys(night).length) store[pDateIso] = night; else delete store[pDateIso];
+  // pull an item from this night (an added item is deleted outright)
+  box.querySelectorAll("[data-off]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const tier = b.dataset.off, e = nightEdit(v.id, pDateIso, true);
+      const i = e.extras.findIndex((x) => tierOf(x) === tier);
+      if (i >= 0) e.extras.splice(i, 1); else { e.off[tier] = true; delete e.price[tier]; }
+      pruneNight(v.id, pDateIso);
+      renderPDates();
+      toast("Removed from that night. Customers won't see it.");
+    })
+  );
+  box.querySelectorAll("[data-on]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const e = nightEdit(v.id, pDateIso, true);
+      delete e.off[b.dataset.on];
+      pruneNight(v.id, pDateIso);
+      renderPDates();
+      toast("Back on the menu for that night.");
+    })
+  );
+  const reset = $("pNightReset");
+  if (reset) reset.addEventListener("click", () => {
+    if (NIGHT_EDITS[v.id]) delete NIGHT_EDITS[v.id][pDateIso];
     renderPDates();
-    toast(Object.keys(night).length
-      ? `${fmtDate(pDateIso)} priced. Customers see it on that night only.`
-      : `${fmtDate(pDateIso)} is back to automatic pricing.`);
+    toast(`${fmtDate(pDateIso)} is back to automatic pricing.`);
+  });
+  // add a one-off item that exists on this night only
+  $("pAddItem").addEventListener("click", () => {
+    const name = $("pAddName").value.trim(), price = parseInt($("pAddPrice").value, 10);
+    if (!name || !Number.isFinite(price) || price <= 0) { toast("Give the item a name and a price."); return; }
+    const type = $("pAddType").value;
+    const e = nightEdit(v.id, pDateIso, true);
+    const tier = `x${++pExtraSeq}`;
+    e.extras.push({
+      id: `${v.id}-${tier}`, type, name, price, depPct: 20, extra: true,
+      cap: type === "buyout" ? "whole venue" : "up to 10 guests",
+      sign: "included", includes: [`One-off for ${fmtDate(pDateIso)}`, "Set by the venue"],
+    });
+    renderPDates();
+    toast(`${name} added to ${fmtDate(pDateIso)}.`);
   });
 }
+
+function bindPDates() { /* the calendar binds its own handlers on every render */ }
 
 // the promoter edits base prices for their club; PRICE_EDITS feeds venuePackages,
 // so browse cards, compare, the floor map, and the booking card all update instantly
@@ -1519,7 +1667,7 @@ function renderPPricing() {
   const v = PROMOTER.venue;
   if (!$("pPricing") || !v) return;
   $("pPricing").innerHTML = venuePackages(v).map((p) => {
-    const tier = p.id.split("-").pop();
+    const tier = tierOf(p);
     return `<div class="p-price-row">
       <div class="p-price-main"><b>${p.name}</b><span>${p.cap} · ${p.depPct}% deposit</span></div>
       <div class="p-price-edit">

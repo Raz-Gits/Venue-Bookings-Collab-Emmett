@@ -1069,33 +1069,71 @@ body {
 .p-guest-contact a:hover { color: var(--rausch); }
 .p-guest-contact span { font-size: 0.74rem; color: var(--muted-soft); }
 
-/* custom nights: one date, one or two prices, saved */
-.p-datebox { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
-.p-date-pick {
-  display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
-  border: 1px solid var(--hairline); border-radius: var(--r-md);
-  padding: 16px 18px; box-shadow: var(--shadow);
+/* the venue's own calendar: click a night, edit that night's items */
+.p-datebox { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.p-cal { border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 16px; box-shadow: var(--shadow); }
+.p-cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.p-cal-head b { font-size: 0.95rem; }
+.p-cal-nav { display: flex; gap: 6px; }
+.p-cal-nav button {
+  width: 30px; height: 30px; border-radius: var(--r-full);
+  border: 1px solid var(--hairline); background: none; cursor: pointer;
+  font-size: 0.9rem; color: var(--ink);
 }
-.p-date-fields { display: contents; }
-.p-date-field { display: flex; flex-direction: column; gap: 5px; }
-.p-date-field > span { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); }
-.p-date-field small { font-size: 0.7rem; color: var(--muted-soft); }
-.p-date-field input[type="date"] {
-  font-family: var(--font); font-size: 0.92rem; font-weight: 500; color: var(--ink);
-  border: 1px solid var(--border-strong); border-radius: var(--r-sm);
-  padding: 9px 10px; background: var(--canvas);
+.p-cal-nav button:hover { background: var(--surface-soft); }
+.p-cal-dow, .p-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.p-cal-dow span { text-align: center; font-size: 0.64rem; font-weight: 700; color: var(--muted-soft); padding: 3px 0; }
+.p-cal-cell {
+  position: relative; min-height: 46px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  background: none; cursor: pointer; font-family: var(--font);
+  transition: border-color 0.15s, background 0.15s;
 }
-.p-date-pick .btn-primary { padding: 11px 18px; }
-.p-date-list { display: flex; flex-direction: column; gap: 8px; }
-.p-date-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+.p-cal-cell:hover:not(.past):not(.empty) { background: var(--surface-soft); }
+.p-cal-cell i { font-style: normal; font-size: 0.82rem; font-weight: 600; color: var(--ink); }
+.p-cal-cell small { font-size: 0.6rem; color: var(--muted-soft); }
+.p-cal-cell.custom { border-color: var(--rausch); }
+.p-cal-cell.custom small { color: var(--rausch); font-weight: 700; }
+.p-cal-cell.on { background: var(--ink); }
+.p-cal-cell.on i, .p-cal-cell.on small { color: #fff; }
+.p-cal-cell.past { opacity: 0.32; cursor: default; }
+.p-cal-cell.empty { cursor: default; }
+.p-cal-dot { position: absolute; top: 5px; right: 6px; width: 5px; height: 5px; border-radius: var(--r-full); background: var(--rausch); }
+
+/* the night editor: one row per item, plus an add row */
+.p-night { border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 16px 18px; box-shadow: var(--shadow); }
+.p-night-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.p-night-head b { display: block; font-size: 1rem; }
+.p-night-head span { font-size: 0.78rem; color: var(--muted); }
+.p-night-items { display: flex; flex-direction: column; gap: 8px; }
+.p-night-item {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   border: 1px solid var(--hairline-soft); border-radius: var(--r-sm);
-  padding: 11px 14px; background: var(--surface-soft);
+  padding: 10px 12px;
 }
-.p-date-row b { display: block; font-size: 0.88rem; }
-.p-date-row span { font-size: 0.76rem; color: var(--muted); }
+.p-night-item.is-extra { border-color: var(--rausch); background: var(--surface-soft); }
+.p-night-item.pulled { background: var(--surface-strong); }
+.p-night-item.pulled .p-night-main b { text-decoration: line-through; color: var(--muted); }
+.p-night-main { flex: 1; min-width: 150px; }
+.p-night-main b { display: block; font-size: 0.9rem; font-weight: 600; }
+.p-night-main span { font-size: 0.74rem; color: var(--muted); }
+.p-night-x {
+  font-family: var(--font); font-size: 0.8rem; font-weight: 600; color: var(--muted);
+  background: none; border: 0; cursor: pointer; padding: 6px 2px;
+}
+.p-night-x:hover { color: var(--error); }
+.p-night-add { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--hairline-soft); }
+.p-night-add input[type="text"], .p-night-add select {
+  font-family: var(--font); font-size: 0.88rem; color: var(--ink);
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  padding: 9px 11px; background: var(--canvas);
+}
+.p-night-add input[type="text"] { flex: 1; min-width: 170px; }
+.p-night-add .btn-primary { padding: 10px 18px; }
 .p-date-empty { font-size: 0.8rem; color: var(--muted-soft); padding: 4px 2px; }
-@media (max-width: 860px) { .p-datebox { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .p-datebox { grid-template-columns: 1fr; } }
+.pkg-special { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.02em; color: var(--rausch); background: var(--rausch-disabled); border-radius: var(--r-full); padding: 1px 8px; }
 .p-req { border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 18px; }
 .p-req.won { border-color: var(--rausch); box-shadow: var(--shadow); }
 .p-req-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -1534,8 +1572,12 @@ body {
   aspect-ratio: 16 / 10;
   border: 1px solid var(--hairline);
   border-radius: var(--r-md);
-  background: var(--surface-soft);
   overflow: hidden;
+  /* floorboards, so the room reads as a room and not a diagram */
+  background:
+    repeating-linear-gradient(90deg, rgba(0,0,0,0.022) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.022) 0 1px, transparent 1px 26px),
+    var(--surface-soft);
 }
 .floor-zone {
   position: absolute;
@@ -1544,10 +1586,41 @@ body {
   color: var(--muted-soft);
   border-radius: var(--r-sm);
 }
-.fz-dj { left: 41%; top: 3%; width: 18%; height: 13%; background: var(--surface-strong); }
-.fz-bar { left: 2%; top: 26%; width: 7%; height: 48%; background: var(--surface-strong); writing-mode: vertical-rl; }
-.fz-dance { left: 32%; top: 27%; width: 36%; height: 44%; border: 1.5px dashed var(--hairline); color: var(--muted-soft); background: none; }
-.fz-entry { left: 84%; top: 84%; width: 13%; height: 12%; border: 1.5px dashed var(--hairline); background: none; }
+/* DJ booth with a pair of decks */
+.fz-dj {
+  left: 41%; top: 3%; width: 18%; height: 13%;
+  gap: 3px; padding-top: 3px;
+  background: linear-gradient(180deg, var(--surface-strong), #e9e9e9);
+  border: 1px solid var(--hairline);
+}
+.fz-decks { display: flex; gap: 5px; }
+.fz-decks i { width: 11px; height: 11px; border-radius: var(--r-full); border: 1.5px solid var(--muted-soft); position: relative; }
+.fz-decks i::after { content: ""; position: absolute; inset: 3.5px; border-radius: var(--r-full); background: var(--muted-soft); }
+/* the bar runs down the right wall, with stools facing the room */
+.fz-bar {
+  right: 2%; top: 24%; width: 8%; height: 52%;
+  background: linear-gradient(90deg, #e4e4e4, var(--surface-strong));
+  border: 1px solid var(--hairline);
+  align-content: center;
+}
+.fz-bar-label { writing-mode: vertical-rl; letter-spacing: 0.14em; }
+.fz-stools { position: absolute; left: -13px; top: 8%; display: flex; flex-direction: column; justify-content: space-around; height: 84%; }
+.fz-stools i { width: 9px; height: 9px; border-radius: var(--r-full); border: 1.5px solid var(--border-strong); background: var(--canvas); }
+/* dancefloor with a subtle checker so it reads as the floor */
+.fz-dance {
+  left: 32%; top: 27%; width: 36%; height: 44%;
+  border: 1.5px dashed var(--hairline); color: var(--muted-soft);
+  background:
+    repeating-conic-gradient(rgba(0,0,0,0.028) 0% 25%, transparent 0% 50%) 0 0 / 22px 22px;
+}
+.fz-dance-label { background: var(--surface-soft); padding: 2px 8px; border-radius: var(--r-full); }
+/* entry at the top-left corner, with a door arrow */
+.fz-entry {
+  left: 3%; top: 3%; width: 16%; height: 13%;
+  gap: 2px;
+  border: 1.5px dashed var(--hairline); background: none;
+}
+.fz-entry svg { width: 15px; height: 15px; color: var(--muted-soft); }
 .floor-t {
   position: absolute;
   display: grid; place-items: center;

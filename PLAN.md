@@ -55,16 +55,19 @@ quoting redundant. New features, all simulated in the demo:
   (booths, dancefloor tables, standard tables around DJ/bar/dancefloor zones);
   tap an open table to claim it and the package follows its tier, taken
   tables re-roll by night, and the table number flows through checkout, the
-  booked screen, and the promoter's request card. One demo floor plan for
-  now; real venues upload theirs in the portal later.
+  booked screen, and the promoter's request card. Floor plans are per venue
+  (`FLOOR_PLANS`); Bounce House has its own trimmed layout. Real venues
+  upload theirs in the portal later.
 - **Bounce House (Oviedo) added as the lead venue**: first in browse with
   temp photos from eatdrinkbounce.com, since they're the first pitch target
   (`pitch: true` flag controls ordering).
-- **Custom nights**: a venue can name an exact price for one date (NYE, a
-  guest DJ) in "Custom nights"; `DATE_PRICE_EDITS` beats the demand engine for
-  that venue/date/package only, shows a "Special" tag in the customer
-  calendar, and every other night keeps automatic pricing. The portal
-  preview does the same by tapping a night on the availability calendar.
+- **Custom nights**: the dashboard has the venue's own month calendar. Click a
+  night and you can reprice every item for that date, pull items you are not
+  offering, or add a one-off (a NYE package). `NIGHT_EDITS` beats the demand
+  engine for that venue, night, and item only; customers see a "Special night"
+  badge, pulled items vanish from the list and the floor map, and every other
+  night keeps automatic pricing. The portal preview does the same by clicking
+  a night on its calendar.
 - **Guest details on every booking**: full name, tap-to-call phone, party,
   occasion, confirmation code, and payment method sit at the top of each
   promoter request card. Demo data for now; in production this comes from

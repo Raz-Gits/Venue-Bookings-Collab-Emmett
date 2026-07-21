@@ -202,9 +202,24 @@
 /* custom-night editor under the calendar */
 .vp-day.custom { border-color: var(--rausch); }
 .vp-day.custom small { color: var(--rausch); font-weight: 700; }
-.vp-nightbox { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 16px 18px; margin-top: 16px; max-width: 640px; box-shadow: var(--shadow); }
+.vp-nightbox { display: flex; flex-direction: column; gap: 12px; border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 16px 18px; margin-top: 16px; max-width: 640px; box-shadow: var(--shadow); }
 .vp-nightbox .vp-field { margin: 0; }
 .vp-nightbox-head { width: 100%; }
+.vp-night-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.vp-night-tools { display: flex; gap: 4px; flex-wrap: wrap; }
+.vp-night-items { display: flex; flex-direction: column; gap: 8px; }
+.vp-night-item { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1px solid var(--hairline-soft); border-radius: var(--r-sm); padding: 10px 12px; }
+.vp-night-item.is-extra { border-color: var(--rausch); background: var(--surface-soft); }
+.vp-night-item.pulled { background: var(--surface-strong); }
+.vp-night-item.pulled .vp-night-main b { text-decoration: line-through; color: var(--muted); }
+.vp-night-main { flex: 1; min-width: 150px; }
+.vp-night-main b { display: block; font-size: 0.9rem; font-weight: 600; }
+.vp-night-main span { font-size: 0.74rem; color: var(--muted); }
+.vp-night-x { font-family: var(--font); font-size: 0.8rem; font-weight: 600; color: var(--muted); background: none; border: 0; cursor: pointer; padding: 6px 2px; }
+.vp-night-x:hover { color: var(--error); }
+.vp-night-add { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--hairline-soft); }
+.vp-night-add input[type="text"] { flex: 1; min-width: 170px; font-family: var(--font); font-size: 0.88rem; color: var(--ink); border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 9px 11px; background: var(--canvas); }
+.vp-night-add .vp-save { padding: 10px 18px; font-size: 0.88rem; }
 .vp-nightbox-head b { font-size: 0.95rem; }
 .vp-nightbox-head span { display: block; font-size: 0.78rem; color: var(--muted); }
 .vp-night-clear { font-family: var(--font); font-size: 0.84rem; font-weight: 600; color: var(--muted); background: none; border: 0; cursor: pointer; padding: 11px 4px; }
@@ -235,7 +250,7 @@
     <button type="button" class="vp-tab" data-pane="earnings">Earnings</button>
     <button type="button" class="vp-tab" data-pane="listing">Listing</button>
   </nav>
-  <div class="vp-id"><small>Neon Garden</small><span class="vp-avatar">NG</span></div>
+  <div class="vp-id"><small>Bounce House</small><span class="vp-avatar">BH</span></div>
 </header>
 <div class="vp-demo-note">Preview of the BookOut venue portal · all data simulated · <a href="index.html">back to the customer app</a></div>
 
@@ -244,7 +259,7 @@
   <!-- ============ TODAY ============ -->
   <section class="vp-pane on" id="pane-today">
     <div class="vp-greet">
-      <h1>Good evening, Neon Garden</h1>
+      <h1>Good evening, Bounce House</h1>
       <p id="vpDateLine"></p>
     </div>
     <div class="vp-stats" id="vpStats"></div>
@@ -325,15 +340,15 @@
     <div class="vp-greet"><h1>Your listing</h1><p>What customers see on your BookOut page. Edits go live instantly.</p></div>
     <h2 class="vp-h2">Photos</h2>
     <div class="vp-photos">
-      <div class="vp-photo" style="background-image: url('https://lirp.cdn-website.com/4eb3478d/dms3rep/multi/opt/beacham-home-hero-1-1920w.png')"></div>
-      <div class="vp-photo" style="background-image: url('https://lirp.cdn-website.com/4eb3478d/dms3rep/multi/opt/beacham-home-rental-1-1920w.png')"></div>
-      <div class="vp-photo" style="background-image: url('https://lirp.cdn-website.com/4eb3478d/dms3rep/multi/opt/beacham-home-rental-2-1920w.png')"></div>
+      <div class="vp-photo" style="background-image: url('https://eatdrinkbounce.com/wp-content/uploads/2022/02/TYPICAL-755-1024x683.jpg')"></div>
+      <div class="vp-photo" style="background-image: url('https://eatdrinkbounce.com/wp-content/uploads/2022/02/SliderInside.jpg')"></div>
+      <div class="vp-photo" style="background-image: url('https://eatdrinkbounce.com/wp-content/uploads/2022/02/SliderOutside.jpg')"></div>
       <button type="button" class="vp-photo-add" id="vpAddPhoto">+ Add photos</button>
     </div>
-    <label class="vp-field"><span>Venue name</span><input type="text" value="Neon Garden" /></label>
-    <label class="vp-field"><span>Neighborhood</span><input type="text" value="Downtown Orlando" /></label>
-    <label class="vp-field"><span>Vibe tags</span><input type="text" value="Rooftop · Open-air" /></label>
-    <label class="vp-field"><span>About your venue</span><textarea>Neon Garden is a rooftop spot in Downtown Orlando, known for open-air nights over Orange Ave. Reserve a table or take the whole roof.</textarea></label>
+    <label class="vp-field"><span>Venue name</span><input type="text" value="Bounce House" /></label>
+    <label class="vp-field"><span>Neighborhood</span><input type="text" value="Oviedo, Orlando" /></label>
+    <label class="vp-field"><span>Vibe tags</span><input type="text" value="Social house · Cocktails" /></label>
+    <label class="vp-field"><span>About your venue</span><textarea>Bounce House is a social house in Oviedo, known for refined cocktails and a room that fills up fast. Reserve a table or take the whole place.</textarea></label>
     <button type="button" class="vp-save" id="vpSaveListing">Save changes</button>
     <a class="btn-textlink vp-preview-link" href="index.html">Preview your public page</a>
   </section>
@@ -462,12 +477,42 @@ function seedBookings(y, m) {
 
 function nightPrice(dt) {
   const wd = dt.getDay();
-  const base = 600; // Standard table base; the whole card scales from here
+  const base = 400; // Bounce House standard table base; the whole card scales from here
   const f = wd === 5 || wd === 6 ? 1.28 : wd === 4 ? 1.08 : wd === 0 ? 1.0 : 0.82;
   return Math.round((base * f) / 25) * 25;
 }
 
-const customNights = {}; // iso -> exact table price for that night
+// iso -> { price: {tier: $}, off: {tier: true}, extras: [{tier, name, price, cap, type}] }
+const customNights = {};
+let extraSeq = 0;
+
+function nightOf(iso, make) {
+  if (!customNights[iso] && make) customNights[iso] = { price: {}, off: {}, extras: [] };
+  return customNights[iso] || null;
+}
+function nightTouched(iso) {
+  const n = customNights[iso];
+  return !!(n && (Object.keys(n.price).length || Object.keys(n.off).length || n.extras.length));
+}
+function pruneNight(iso) { if (customNights[iso] && !nightTouched(iso)) delete customNights[iso]; }
+// what this night actually offers: custom prices in, pulled items out, extras added
+function itemsOn(iso) {
+  const n = customNights[iso];
+  const dt = new Date(iso + "T12:00:00");
+  const f = nightPrice(dt) / 400; // the night's demand multiplier, from the table base
+  const list = PKGS.filter((p) => !(n && n.off[p.tier])).map((p) => {
+    const auto = Math.round((p.price * f) / 25) * 25;
+    const set = n && n.price[p.tier] != null;
+    return { ...p, auto, price: set ? n.price[p.tier] : auto, custom: !!set };
+  });
+  if (n) for (const x of n.extras) list.push({ ...x, auto: x.price, custom: true, isExtra: true });
+  return list;
+}
+// the cheapest table price that night, for the calendar cell
+function nightFrom(iso) {
+  const tables = itemsOn(iso).filter((p) => p.type !== "buyout" && !String(p.tier).startsWith("b"));
+  return tables.length ? Math.min(...tables.map((p) => p.price)) : null;
+}
 
 // the night the promoter is editing under the calendar
 let pickedIso = null;
@@ -475,32 +520,90 @@ let pickedIso = null;
 function renderNightBox() {
   const box = $("vpNightBox");
   if (!pickedIso) {
-    box.innerHTML = `<div class="vp-nightbox-head"><b>Pick a night above</b><span>Set a one-off price for New Year's Eve, a guest DJ, or a holiday. Every other night keeps your base prices with automatic demand pricing.</span></div>`;
+    box.innerHTML = `<div class="vp-nightbox-head"><b>Pick a night above</b><span>Click any night to price each item just for that date, pull what you're not offering, or add a one-off like a New Year's package. Every other night keeps your base prices.</span></div>`;
     return;
   }
   const dt = new Date(pickedIso + "T12:00:00");
-  const auto = nightPrice(dt);
-  const cur = customNights[pickedIso];
-  box.innerHTML = `
-    <div class="vp-nightbox-head">
-      <b>${dt.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</b>
-      <span>${cur ? `Custom price set. Normally ${"$" + auto} that night.` : `Automatic price is ${"$" + auto}. Set your own below.`}</span>
-    </div>
-    <label class="vp-field" style="max-width: 200px;"><span>Table price this night</span>
-      <input type="number" step="25" min="0" id="vpNightPrice" placeholder="${auto}" value="${cur != null ? cur : ""}" />
-    </label>
-    <button type="button" class="vp-save" id="vpNightSave">Save night</button>
-    ${cur != null ? `<button type="button" class="vp-night-clear" id="vpNightClear">Back to automatic</button>` : ""}
-    <button type="button" class="vp-night-clear" id="vpNightBlock">${blocked.has(pickedIso) ? "Reopen night" : "Block night"}</button>`;
+  const n = customNights[pickedIso];
+  const items = itemsOn(pickedIso);
+  const pulled = PKGS.filter((p) => n && n.off[p.tier]);
 
-  $("vpNightSave").addEventListener("click", () => {
-    const val = parseInt($("vpNightPrice").value, 10);
-    if (Number.isFinite(val) && val > 0) { customNights[pickedIso] = val; toast(`Night priced at $${val}. Customers see it on that date only.`); }
-    else { delete customNights[pickedIso]; toast("Night is back to automatic pricing."); }
+  box.innerHTML = `
+    <div class="vp-nightbox-head vp-night-top">
+      <div>
+        <b>${dt.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</b>
+        <span>${nightTouched(pickedIso) ? "Custom night. Customers see exactly these prices." : "Automatic pricing. Change anything below to make it a custom night."}</span>
+      </div>
+      <div class="vp-night-tools">
+        ${nightTouched(pickedIso) ? `<button type="button" class="vp-night-clear" id="vpNightReset">Reset to automatic</button>` : ""}
+        <button type="button" class="vp-night-clear" id="vpNightBlock">${blocked.has(pickedIso) ? "Reopen night" : "Block night"}</button>
+      </div>
+    </div>
+
+    <div class="vp-night-items">
+      ${items.map((p) => `
+        <div class="vp-night-item${p.isExtra ? " is-extra" : ""}">
+          <div class="vp-night-main"><b>${p.name}</b><span>${p.cap}${p.isExtra ? " · added for this night" : ` · auto $${p.auto}`}</span></div>
+          <label class="vp-price-in"><span>$</span><input type="number" step="25" min="0" placeholder="${p.auto}" value="${p.custom ? p.price : ""}" data-ntier="${p.tier}" aria-label="${p.name} price this night" /></label>
+          <button type="button" class="vp-night-x" data-off="${p.tier}" aria-label="Remove ${p.name} from this night">Remove</button>
+        </div>`).join("")}
+      ${pulled.map((p) => `
+        <div class="vp-night-item pulled">
+          <div class="vp-night-main"><b>${p.name}</b><span>Not offered this night</span></div>
+          <button type="button" class="vp-night-x" data-on="${p.tier}">Put back</button>
+        </div>`).join("")}
+    </div>
+
+    <div class="vp-night-add">
+      <input type="text" id="vpAddName" placeholder="Add an item, e.g. NYE package" aria-label="New item name" />
+      <label class="vp-price-in"><span>$</span><input type="number" step="25" min="0" id="vpAddPrice" placeholder="1200" aria-label="New item price" /></label>
+      <button type="button" class="vp-save" id="vpAddItem">Add item</button>
+    </div>`;
+
+  box.querySelectorAll("input[data-ntier]").forEach((inp) =>
+    inp.addEventListener("change", () => {
+      const tier = inp.dataset.ntier, val = parseInt(inp.value, 10);
+      const e = nightOf(pickedIso, true);
+      const extra = e.extras.find((x) => x.tier === tier);
+      if (Number.isFinite(val) && val > 0) { if (extra) extra.price = val; else e.price[tier] = val; }
+      else if (extra) { inp.value = extra.price; return; }
+      else delete e.price[tier];
+      pruneNight(pickedIso);
+      renderCal(); renderNightBox();
+      toast("Night updated. Customers see it on that date only.");
+    })
+  );
+  box.querySelectorAll("[data-off]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const tier = b.dataset.off, e = nightOf(pickedIso, true);
+      const i = e.extras.findIndex((x) => x.tier === tier);
+      if (i >= 0) e.extras.splice(i, 1); else { e.off[tier] = true; delete e.price[tier]; }
+      pruneNight(pickedIso);
+      renderCal(); renderNightBox();
+      toast("Removed from that night. Customers won't see it.");
+    })
+  );
+  box.querySelectorAll("[data-on]").forEach((b) =>
+    b.addEventListener("click", () => {
+      delete nightOf(pickedIso, true).off[b.dataset.on];
+      pruneNight(pickedIso);
+      renderCal(); renderNightBox();
+      toast("Back on the menu for that night.");
+    })
+  );
+  $("vpAddItem").addEventListener("click", () => {
+    const name = $("vpAddName").value.trim(), price = parseInt($("vpAddPrice").value, 10);
+    if (!name || !Number.isFinite(price) || price <= 0) { toast("Give the item a name and a price."); return; }
+    nightOf(pickedIso, true).extras.push({ tier: `x${++extraSeq}`, name, price, cap: "set by you", dep: 20 });
     renderCal(); renderNightBox();
+    toast(`${name} added to that night.`);
   });
-  const clr = $("vpNightClear");
-  if (clr) clr.addEventListener("click", () => { delete customNights[pickedIso]; renderCal(); renderNightBox(); toast("Night is back to automatic pricing."); });
+  const reset = $("vpNightReset");
+  if (reset) reset.addEventListener("click", () => {
+    delete customNights[pickedIso];
+    renderCal(); renderNightBox();
+    toast("Night is back to automatic pricing.");
+  });
   $("vpNightBlock").addEventListener("click", () => {
     if (bookedDays[pickedIso] && !blocked.has(pickedIso)) { toast("That night has bookings. Handle those first."); return; }
     if (blocked.has(pickedIso)) { blocked.delete(pickedIso); toast("Night reopened. Customers can book it again."); }
@@ -522,10 +625,11 @@ function renderCal() {
     const past = iso < todayIso;
     const bk = bookedDays[iso] || 0;
     const isBlocked = blocked.has(iso);
-    const custom = customNights[iso];
-    html += `<button type="button" class="vp-day${past ? " past" : ""}${isBlocked ? " blocked" : ""}${custom != null ? " custom" : ""}${iso === pickedIso ? " on" : ""}" data-iso="${iso}" ${past ? "disabled" : ""}>
+    const custom = nightTouched(iso);
+    const from = nightFrom(iso);
+    html += `<button type="button" class="vp-day${past ? " past" : ""}${isBlocked ? " blocked" : ""}${custom ? " custom" : ""}${iso === pickedIso ? " on" : ""}" data-iso="${iso}" ${past ? "disabled" : ""}>
       <i>${d}</i>
-      <small>${isBlocked ? "Blocked" : "$" + (custom != null ? custom : nightPrice(dt))}</small>
+      <small>${isBlocked ? "Blocked" : from == null ? "Closed" : "from $" + from}</small>
       ${bk && !isBlocked ? `<span class="vp-bknum">${bk}</span>` : ""}
     </button>`;
   }
@@ -542,12 +646,13 @@ $("vpCalPrev").addEventListener("click", () => { calM--; if (calM < 0) { calM = 
 $("vpCalNext").addEventListener("click", () => { calM++; if (calM > 11) { calM = 0; calY++; } renderCal(); });
 
 /* ---- pricing ---- */
+// Bounce House's packages, matching the customer app
 const PKGS = [
-  { name: "Standard table", cap: "up to 6 guests", price: 600, dep: 20, sign: false },
-  { name: "Dancefloor table", cap: "up to 10 guests", price: 900, dep: 20, sign: false },
-  { name: "VIP booth", cap: "up to 15 guests", price: 1200, dep: 25, sign: true },
-  { name: "Full venue buyout", cap: "whole venue", price: 6000, dep: 20, sign: true },
-  { name: "Premium buyout", cap: "whole venue and extras", price: 9000, dep: 25, sign: true },
+  { tier: "t1", name: "Standard table", cap: "up to 6 guests", price: 400, dep: 20, sign: false },
+  { tier: "t2", name: "Dancefloor table", cap: "up to 10 guests", price: 600, dep: 20, sign: false },
+  { tier: "t3", name: "VIP booth", cap: "up to 15 guests", price: 800, dep: 25, sign: true },
+  { tier: "b1", name: "Full venue buyout", cap: "whole venue", price: 3500, dep: 20, sign: true },
+  { tier: "b2", name: "Premium buyout", cap: "whole venue and extras", price: 6000, dep: 25, sign: true },
 ];
 
 function renderPkgs() {
@@ -568,6 +673,7 @@ function renderPkgs() {
     inp.addEventListener("change", () => {
       const p = PKGS[inp.dataset.i];
       p.price = Math.max(0, parseInt(inp.value, 10) || 0);
+      renderCal(); renderNightBox(); // the calendar prices off these bases
       toast(`${p.name} saved. Customers now see from $${Math.round((p.price * 0.82) / 25) * 25} midweek.`);
     })
   );
