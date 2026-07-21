@@ -51,6 +51,15 @@ quoting redundant. New features, all simulated in the demo:
 - **Apple Pay at checkout** (simulated): the black Apple Pay button books in one
   tap next to the card option. The real one rides on Stripe's Payment Request
   in Phase 3 (needs the domain verified + HTTPS, no extra fees).
+- **Pick your table, movie-seat style**: table bookings get a floor map
+  (booths, dancefloor tables, standard tables around DJ/bar/dancefloor zones);
+  tap an open table to claim it and the package follows its tier, taken
+  tables re-roll by night, and the table number flows through checkout, the
+  booked screen, and the promoter's request card. One demo floor plan for
+  now; real venues upload theirs in the portal later.
+- **Bounce House (Oviedo) added as the lead venue**: first in browse with
+  temp photos from eatdrinkbounce.com, since they're the first pitch target
+  (`pitch: true` flag controls ordering).
 - **Venue portal preview at `promoter.html`**: a standalone page showing venues
   their whole side: Today (paid bookings to confirm/decline, tonight's lineup),
   an availability calendar with night blocking, a pricing/packages editor,

@@ -341,14 +341,14 @@ $("vpTabs").addEventListener("click", (e) => {
 
 /* ---- today ---- */
 const REQS = [
-  { id: "r1", who: "Maya R.", pkg: "VIP booth", price: 1560, dep: 390, night: "Fri, Jul 24", time: "10:00 PM", party: 12, occasion: "Birthday", sign: "Maya's Golden Hour", extras: "", pay: "Apple Pay", decided: null },
-  { id: "r2", who: "Devon K.", pkg: "Full venue buyout", price: 8050, dep: 1610, night: "Sat, Aug 1", time: "9:00 PM", party: 180, occasion: "Company party", sign: "", extras: "2× Dancefloor table added", pay: "Card ····4242", decided: null },
+  { id: "r1", who: "Maya R.", pkg: "VIP booth", table: "B2", price: 1560, dep: 390, night: "Fri, Jul 24", time: "10:00 PM", party: 12, occasion: "Birthday", sign: "Maya's Golden Hour", extras: "", pay: "Apple Pay", decided: null },
+  { id: "r2", who: "Devon K.", pkg: "Full venue buyout", table: "", price: 8050, dep: 1610, night: "Sat, Aug 1", time: "9:00 PM", party: 180, occasion: "Company party", sign: "", extras: "2× Dancefloor table added", pay: "Card ····4242", decided: null },
 ];
 const LINEUP = [
-  { time: "9:30 PM", who: "Jordan P. · 8 guests", pkg: "Dancefloor table", dep: "$185 paid" },
-  { time: "10:00 PM", who: "Sofia M. · 14 guests", pkg: "VIP booth · LED sign: \"Sofia's 21st\"", dep: "$300 paid" },
-  { time: "10:30 PM", who: "Chris B. · 6 guests", pkg: "Standard table", dep: "$120 paid" },
-  { time: "11:00 PM", who: "Amara T. · 10 guests", pkg: "Dancefloor table", dep: "$185 paid" },
+  { time: "9:30 PM", who: "Jordan P. · 8 guests", pkg: "Dancefloor table D4", dep: "$185 paid" },
+  { time: "10:00 PM", who: "Sofia M. · 14 guests", pkg: "VIP booth B1 · LED sign: \"Sofia's 21st\"", dep: "$300 paid" },
+  { time: "10:30 PM", who: "Chris B. · 6 guests", pkg: "Standard table S2", dep: "$120 paid" },
+  { time: "11:00 PM", who: "Amara T. · 10 guests", pkg: "Dancefloor table D1", dep: "$185 paid" },
 ];
 
 function pendingCount() { return REQS.filter((r) => !r.decided).length; }
@@ -373,6 +373,7 @@ function renderReqs() {
         <div class="vp-cell"><small>Guests</small><b>${r.party} people · ${r.occasion}</b></div>
         <div class="vp-cell"><small>Night total</small><b>$${r.price.toLocaleString()}</b></div>
         <div class="vp-cell"><small>Deposit collected</small><b>$${r.dep.toLocaleString()}</b></div>
+        ${r.table ? `<div class="vp-cell"><small>Table</small><b>${r.table} · picked on the floor map</b></div>` : ""}
         ${r.extras ? `<div class="vp-cell"><small>Added</small><b>${r.extras}</b></div>` : ""}
         ${r.sign ? `<div class="vp-cell"><small>LED sign</small><b>"${r.sign}"</b></div>` : ""}
       </div>

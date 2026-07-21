@@ -6,6 +6,8 @@
 "use strict";
 
 const VENUES = [
+  // pitch target: shown first in browse (pitch: true), the venue we're selling to
+  { id: "bounce",   name: "Bounce House",     area: "Oviedo",        tags: "Social house · Cocktails", band: [400, 800], buyout: [3500, 6000], g: ["#ff9d4d", "#d0345c"], glyph: "B", rating: 4.95, fav: true, pitch: true },
   { id: "neon",     name: "Neon Garden",      area: "Downtown",      tags: "Rooftop · Open-air",     band: [600, 1200],  buyout: [6000, 9000],   g: ["#ff7a5c", "#c2264d"], glyph: "N", rating: 4.92, fav: true },
   { id: "velvet",   name: "Velvet Citrus",    area: "Thornton Park", tags: "Lounge · Live DJ",       band: [500, 900],   buyout: [4500, 7000],   g: ["#ffa53d", "#e0563b"], glyph: "V", rating: 4.85, fav: true },
   { id: "gator",    name: "The Gilded Gator",  area: "Downtown",      tags: "Speakeasy · Cocktails",  band: [450, 850],   buyout: [4000, 6500],   g: ["#c79a3f", "#6b4a1a"], glyph: "G", rating: 4.78, fav: false },
@@ -27,6 +29,16 @@ const VENUES = [
    ============================================================ */
 const TEMP_REAL_PHOTOS = {
   // The Beacham (downtown Orlando) standing in for Neon Garden
+  // Bounce Social House (12100 Challenger Pkwy, UCF/Oviedo corridor): the pitch target
+  bounce: {
+    credit: "Bounce Social House, Oviedo",
+    shots: [
+      "https://eatdrinkbounce.com/wp-content/uploads/2022/02/TYPICAL-755-1024x683.jpg",
+      "https://eatdrinkbounce.com/wp-content/uploads/2022/02/SliderInside.jpg",
+      "https://eatdrinkbounce.com/wp-content/uploads/2022/02/SliderOutside.jpg",
+      "https://eatdrinkbounce.com/wp-content/uploads/2022/02/SliderDrink.jpg",
+    ],
+  },
   neon: {
     credit: "The Beacham, Orlando",
     shots: [
@@ -82,6 +94,7 @@ const state = {
   occasion: "Night out",
   currentVenueId: null,   // venue open in the detail page
   selectedPkgId: null,    // package chosen in the detail page
+  tableId: null,          // the exact table picked on the floor map (table bookings only)
   nightPicked: false,     // has the customer explicitly chosen a night? until then the card says "From"
   showCalPrices: false,   // nightly prices in the calendar cells are opt-in (Airbnb-quiet by default)
   booking: null,          // the live request-to-book: {venueId, pkg, ..., status}
@@ -473,8 +486,9 @@ function bookCard(v) {
 
 function renderRows() {
   $("exploreTitle").textContent = state.filter === "table" ? `Tables in ${state.city}` : `Full venues in ${state.city}`;
-  // venues with real photos lead, so the page opens photo-first
-  const vs = [...matchedVenues()].sort((a, b) => (venuePhotos(b) ? 1 : 0) - (venuePhotos(a) ? 1 : 0));
+  // pitch targets lead, then venues with real photos, so the page opens photo-first
+  const lead = (v) => (v.pitch ? 2 : 0) + (venuePhotos(v) ? 1 : 0);
+  const vs = [...matchedVenues()].sort((a, b) => lead(b) - lead(a));
   $("exploreGrid").innerHTML = vs.map(bookCard).join("");
   $("exploreGrid").querySelectorAll(".pcard").forEach((c) =>
     c.addEventListener("click", () => openVenue(c.dataset.id)) // pick tables or the whole venue inside
@@ -569,6 +583,7 @@ function bindVenue() {
 function openVenue(id, opts = {}) {
   state.currentVenueId = id;
   state.selectedPkgId = null;
+  state.tableId = null;
   state.addons = {};
   syncNight();
   // dates chosen in browse (or a compare row) count as a picked night; otherwise the card opens on "From"
@@ -688,6 +703,7 @@ function renderVenue() {
           <h2 class="venue-section">Choose what to book</h2>
           <div class="pkgs">${pkgHtml}</div>
 
+          <div id="vdFloor"></div>
           <div id="vdAddons"></div>
         </div>
 
@@ -823,9 +839,112 @@ function selectPackage(pkgId) {
   const v = venueById(state.currentVenueId);
   const p = packageById(v, pkgId);
   if (!p || p.type !== "buyout") state.addons = {}; // added tables only ride on a buyout
+  syncTableToPkg(v, p); // auto-seat the best open table of this tier; map tap can change it
   $("venueDetail").querySelectorAll(".pkg").forEach((b) => b.classList.toggle("sel", b.dataset.pkg === pkgId));
   renderVenueCalendar(); // prices update to the chosen package
   if (state.nightPicked) updateBookCardCalc(); // repricing an already-picked night gets the calculating beat too
+}
+
+/* ---- pick your table: movie-seat floor map for table bookings ---- */
+
+// One demo floor plan shared by every venue; in production each venue uploads
+// their real map in the portal. Coordinates are % of the room. Tiers map to
+// packages: t1 Standard, t2 Dancefloor, t3 VIP booth.
+const FLOOR_TABLES = [
+  // VIP booths along the back wall, flanking the DJ
+  { id: "B1", tier: "t3", shape: "booth", x: 3,  y: 3,  w: 16, h: 13 },
+  { id: "B2", tier: "t3", shape: "booth", x: 21, y: 3,  w: 16, h: 13 },
+  { id: "B3", tier: "t3", shape: "booth", x: 63, y: 3,  w: 16, h: 13 },
+  { id: "B4", tier: "t3", shape: "booth", x: 81, y: 3,  w: 16, h: 13 },
+  // dancefloor tables hugging the floor
+  { id: "D1", tier: "t2", shape: "round", x: 20, y: 28, w: 9 },
+  { id: "D2", tier: "t2", shape: "round", x: 20, y: 45, w: 9 },
+  { id: "D3", tier: "t2", shape: "round", x: 20, y: 62, w: 9 },
+  { id: "D4", tier: "t2", shape: "round", x: 71, y: 28, w: 9 },
+  { id: "D5", tier: "t2", shape: "round", x: 71, y: 45, w: 9 },
+  { id: "D6", tier: "t2", shape: "round", x: 71, y: 62, w: 9 },
+  // standard tables along the bottom
+  { id: "S1", tier: "t1", shape: "round", x: 15, y: 82, w: 7.5 },
+  { id: "S2", tier: "t1", shape: "round", x: 27, y: 82, w: 7.5 },
+  { id: "S3", tier: "t1", shape: "round", x: 39, y: 82, w: 7.5 },
+  { id: "S4", tier: "t1", shape: "round", x: 51, y: 82, w: 7.5 },
+  { id: "S5", tier: "t1", shape: "round", x: 63, y: 82, w: 7.5 },
+  { id: "S6", tier: "t1", shape: "round", x: 89, y: 45, w: 7.5 },
+];
+const TIER_NAME = { t1: "Standard", t2: "Dancefloor", t3: "VIP booth" };
+
+// deterministic per-venue-per-night availability; busier nights sell more tables
+function tableTaken(v, iso, tid) {
+  let s = 0;
+  const str = v.id + iso + tid;
+  for (const ch of str) s = (s * 31 + ch.charCodeAt(0)) % 997;
+  const busy = busyFactor(iso);
+  const pct = busy >= 1.15 ? 55 : busy >= 1.0 ? 40 : 25;
+  return s % 100 < pct;
+}
+
+// keep the picked table consistent with the chosen package + night:
+// wrong tier or newly-taken tables are swapped for the first open one
+function syncTableToPkg(v, p) {
+  if (!p || p.type !== "table") { state.tableId = null; return; }
+  const tier = p.id.split("-").pop();
+  const cur = FLOOR_TABLES.find((t) => t.id === state.tableId);
+  if (cur && cur.tier === tier && !tableTaken(v, state.date, cur.id)) return;
+  const open = FLOOR_TABLES.find((t) => t.tier === tier && !tableTaken(v, state.date, t.id));
+  state.tableId = open ? open.id : null;
+}
+
+// tap a table on the map: it becomes yours, and the package follows its tier
+function pickTable(tid) {
+  const v = venueById(state.currentVenueId);
+  const t = FLOOR_TABLES.find((x) => x.id === tid);
+  if (!t || tableTaken(v, state.date, tid)) return;
+  state.tableId = tid;
+  const pkgId = `${v.id}-${t.tier}`;
+  if (state.selectedPkgId !== pkgId) { selectPackage(pkgId); return; }
+  renderFloor();
+  updateBookCard();
+}
+
+function renderFloor() {
+  const box = $("vdFloor");
+  if (!box) return;
+  const v = venueById(state.currentVenueId);
+  const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
+  if (p && p.type === "buyout") { box.innerHTML = ""; return; } // a buyout owns the whole room
+
+  box.innerHTML = `
+    <div class="vd-floor">
+      <div class="vd-floor-head">
+        <h3>Pick your table</h3>
+        <span>Tap an open table, movie-seat style. Availability follows your night; price follows the table's tier.</span>
+      </div>
+      <div class="floor-room">
+        <div class="floor-zone fz-dj">DJ</div>
+        <div class="floor-zone fz-bar">Bar</div>
+        <div class="floor-zone fz-dance">Dancefloor</div>
+        <div class="floor-zone fz-entry">Entry</div>
+        ${FLOOR_TABLES.map((t) => {
+          const taken = tableTaken(v, state.date, t.id);
+          const sel = state.tableId === t.id;
+          const pk = packageById(v, `${v.id}-${t.tier}`);
+          const tip = `${t.id} · ${TIER_NAME[t.tier]}${taken ? " · taken" : ` · ${usd.format(priceForNight(pk.price, state.date))} for ${fmtShort(state.date)}`}`;
+          return `<button type="button"
+            class="floor-t ${t.shape}${sel ? " sel" : ""}${taken ? " taken" : ""}"
+            style="left:${t.x}%;top:${t.y}%;width:${t.w}%;${t.shape === "booth" ? `height:${t.h}%;` : ""}"
+            data-table="${t.id}" ${taken ? "disabled" : ""} title="${tip}" aria-label="${tip}">${t.id}</button>`;
+        }).join("")}
+      </div>
+      <div class="floor-legend">
+        <span><i class="flg open"></i>Open</span>
+        <span><i class="flg sel"></i>Your table</span>
+        <span><i class="flg taken"></i>Taken</span>
+        <span class="floor-note">Demo floor plan · real venues upload theirs</span>
+      </div>
+    </div>`;
+  box.querySelectorAll(".floor-t:not(.taken)").forEach((b) =>
+    b.addEventListener("click", () => pickTable(b.dataset.table))
+  );
 }
 
 /* ---- add tables onto a full-venue buyout ---- */
@@ -925,6 +1044,8 @@ function renderVenueCalendar() {
   const sp = $("vbShowPrices");
   if (sp) sp.textContent = showP ? "Hide nightly prices" : "Show nightly prices";
   renderAddons(); // add-on table prices follow the picked night
+  syncTableToPkg(v, p); // the night changed: re-roll table availability
+  renderFloor();
   updateBookCard();
 }
 
@@ -954,7 +1075,7 @@ function updateBookCard() {
     $("bfRequest").disabled = true;
   } else {
     const n = cb.addons.reduce((s, a) => s + a.qty, 0);
-    $("vbPrice").innerHTML = `<b>${usd.format(cb.total)}</b> <span>${cb.p.name}${n ? ` + ${n} table${n > 1 ? "s" : ""}` : ""} · ${fmtDate(state.date)}</span>`;
+    $("vbPrice").innerHTML = `<b>${usd.format(cb.total)}</b> <span>${cb.p.name}${cb.table ? ` · Table ${cb.table}` : ""}${n ? ` + ${n} table${n > 1 ? "s" : ""}` : ""} · ${fmtDate(state.date)}</span>`;
     $("vbDep").textContent = `${usd.format(cb.deposit)} deposit today · refunded instantly if the club can't host`;
     $("bfRequest").disabled = false;
   }
@@ -989,7 +1110,8 @@ function currentBooking() {
     }
   }
   const total = base + addons.reduce((s, a) => s + a.line, 0);
-  return { v, p, base, addons, total, deposit: roundTo(deposit, 10), night: state.date };
+  const table = p.type === "table" ? state.tableId : null; // the exact table from the floor map
+  return { v, p, base, addons, total, deposit: roundTo(deposit, 10), night: state.date, table };
 }
 
 function bindReqModal() {
@@ -1052,7 +1174,7 @@ function openReqModal() {
   const eb = Math.round(earlyBirdDiscount(state.date) * 100);
   $("reqVenue").textContent = v.name;
   $("reqSummary").innerHTML = `
-    <div class="bline"><span>${p.name} · ${demandLabel(state.date)} night${eb >= 5 ? ` · early bird -${eb}%` : ""}</span><b>${usd.format(base)}</b></div>
+    <div class="bline"><span>${p.name}${cb.table ? ` · Table ${cb.table}` : ""} · ${demandLabel(state.date)} night${eb >= 5 ? ` · early bird -${eb}%` : ""}</span><b>${usd.format(base)}</b></div>
     ${addons.map((a) => `<div class="bline"><span>${a.qty}× ${a.name} (added)</span><b>${usd.format(a.line)}</b></div>`).join("")}
     ${addons.length ? `<div class="bline"><span>Night total</span><b>${usd.format(total)}</b></div>` : ""}
     <div class="bline"><span>${p.type === "buyout" ? "Full venue" : "Table"} · ${state.party} people</span><b>${fmtDate(state.date)} · ${state.time}</b></div>
@@ -1086,6 +1208,7 @@ function submitBooking(method = "card") {
       venueName: v.name,
       pkg: p,
       addons,
+      table: cb.table, // the exact table picked on the floor map (null for buyouts)
       sign: null, // personalized after booking, on the booked screen
       date: state.date,
       time: state.time,
@@ -1128,7 +1251,7 @@ function renderPending() {
       ? "Your deposit was refunded in full, instantly. Pick another venue or another night."
       : `Your card was charged and your night is booked. ${b.venueName} is locking it in on their end, and in the rare case they can't host you, you're refunded instantly.`}</p>
     <div class="pending-lines">
-      <div class="bline"><span>${b.pkg.name}${bookingAddonsLabel(b)}</span><b>${usd.format(b.price)}</b></div>
+      <div class="bline"><span>${b.pkg.name}${b.table ? ` · Table ${b.table}` : ""}${bookingAddonsLabel(b)}</span><b>${usd.format(b.price)}</b></div>
       ${signLine(b)}
       <div class="bline"><span>${b.pkg.type === "buyout" ? "Full venue" : "Table"} · ${b.party} people · ${b.occasion}</span><b>${fmtDate(b.date)} · ${b.time}</b></div>
       <div class="bline total"><span>Deposit ${declined ? "refunded" : "charged (credited to your bill)"}</span><b>${usd.format(b.deposit)}</b></div>
@@ -1223,7 +1346,7 @@ function renderBookingConfirm() {
   $("confirmVenue").textContent = b.venueName;
   $("confirmCode").innerHTML = `Confirmation <b>${b.code}</b>`;
   $("confirmLines").innerHTML = `
-    <div class="bline"><span>${b.pkg.name}${bookingAddonsLabel(b)}</span><b>${usd.format(b.price)}</b></div>
+    <div class="bline"><span>${b.pkg.name}${b.table ? ` · Table ${b.table}` : ""}${bookingAddonsLabel(b)}</span><b>${usd.format(b.price)}</b></div>
     ${(b.addons || []).map((a) => `<div class="bline"><span>Added: ${a.qty}× ${a.name}</span><b>${usd.format(a.line)}</b></div>`).join("")}
     ${signLine(b)}
     <div class="bline"><span>${b.pkg.type === "buyout" ? "Full venue" : "Table"} · ${b.party} people · ${b.occasion}</span><b>${fmtDate(b.date)} · ${b.time}</b></div>
@@ -1285,6 +1408,7 @@ function buildPRequests() {
       date: fmtDate(b.date), time: b.time, occasion: b.occasion,
       price: b.price, deposit: b.deposit,
       addons: b.addons || [],
+      table: b.table || null,
       sign: b.sign || null,
       status: b.status === "pending" ? "open" : b.status, // open | confirmed | declined
       isNew: true,
@@ -1294,7 +1418,7 @@ function buildPRequests() {
     { id: "s1", title: "Full venue buyout", type: "buyout", party: 120, date: "Sat, Aug 22", time: "10:00 PM", occasion: "Corporate", price: 17000, deposit: 3550,
       addons: [{ name: "VIP booth", qty: 2, each: 1500, line: 3000 }], status: "open", isNew: true },
     { id: "s2", title: "VIP booth", type: "table", party: 10, date: "Fri, Aug 14", time: "11:00 PM", occasion: "Bachelor / bachelorette", price: 1500, deposit: 375,
-      sign: { text: "Nick's Last Dance", price: 0 }, status: "open", isNew: false },
+      table: "B3", sign: { text: "Nick's Last Dance", price: 0 }, status: "open", isNew: false },
   );
   PROMOTER.requests = list;
 }
@@ -1336,7 +1460,7 @@ function pReqCard(r) {
     : (r.isNew ? `<span class="p-req-tag new">New</span>` : "");
   const grid = `
     <div class="p-req-grid">
-      <div><small>Booking</small><b>${r.title}</b></div>
+      <div><small>Booking</small><b>${r.title}${r.table ? ` · Table ${r.table}` : ""}</b></div>
       <div><small>Date</small><b>${r.date}</b></div>
       <div><small>Start</small><b>${r.time}</b></div>
       <div><small>Party</small><b>${r.party} people</b></div>

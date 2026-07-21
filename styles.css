@@ -1453,6 +1453,51 @@ body {
 
 .vb-compare { display: block; margin: 12px auto 0; font-size: 0.8rem; }
 
+/* ---------- pick your table: movie-seat floor map ---------- */
+.vd-floor { margin: 26px 0 6px; }
+.vd-floor-head { margin-bottom: 12px; }
+.vd-floor-head h3 { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; }
+.vd-floor-head span { display: block; font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+.floor-room {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--surface-soft);
+  overflow: hidden;
+}
+.floor-zone {
+  position: absolute;
+  display: grid; place-items: center;
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted-soft);
+  border-radius: var(--r-sm);
+}
+.fz-dj { left: 41%; top: 3%; width: 18%; height: 13%; background: var(--surface-strong); }
+.fz-bar { left: 2%; top: 26%; width: 7%; height: 48%; background: var(--surface-strong); writing-mode: vertical-rl; }
+.fz-dance { left: 32%; top: 27%; width: 36%; height: 44%; border: 1.5px dashed var(--hairline); color: var(--muted-soft); background: none; }
+.fz-entry { left: 84%; top: 84%; width: 13%; height: 12%; border: 1.5px dashed var(--hairline); background: none; }
+.floor-t {
+  position: absolute;
+  display: grid; place-items: center;
+  font-family: var(--font); font-size: 0.66rem; font-weight: 700; color: var(--ink);
+  background: var(--canvas);
+  border: 1.5px solid var(--border-strong);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.15s;
+}
+.floor-t.round { aspect-ratio: 1 / 1; border-radius: var(--r-full); }
+.floor-t.booth { border-radius: var(--r-sm); }
+.floor-t:hover:not(.taken):not(.sel) { border-color: var(--ink); transform: scale(1.06); }
+.floor-t.sel { background: var(--rausch); border-color: var(--rausch); color: #fff; }
+.floor-t.taken { background: var(--surface-strong); border-color: var(--hairline); color: var(--muted-soft); cursor: default; text-decoration: line-through; }
+.floor-legend { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 0.74rem; color: var(--muted); }
+.floor-legend .flg { display: inline-block; width: 11px; height: 11px; border-radius: var(--r-full); margin-right: 5px; vertical-align: -1px; }
+.floor-legend .flg.open { border: 1.5px solid var(--border-strong); background: var(--canvas); }
+.floor-legend .flg.sel { background: var(--rausch); }
+.floor-legend .flg.taken { background: var(--surface-strong); border: 1px solid var(--hairline); }
+.floor-note { margin-left: auto; color: var(--muted-soft); font-size: 0.7rem; }
+
 /* Apple Pay (demo: simulated, real one rides on Stripe in Phase 3) */
 .btn-applepay {
   display: flex; align-items: center; justify-content: center; gap: 5px;
