@@ -126,6 +126,7 @@
 .vp-day.blocked { background: var(--surface-strong); }
 .vp-day.blocked i, .vp-day.blocked small { color: var(--muted-soft); text-decoration: line-through; }
 .vp-day.past { opacity: 0.35; cursor: default; }
+.vp-day.on { border-color: var(--ink); border-width: 2px; }
 .vp-day.empty { border: 0; cursor: default; }
 .vp-legend { display: flex; gap: 18px; margin-top: 12px; font-size: 0.74rem; color: var(--muted); flex-wrap: wrap; }
 .vp-legend i { font-style: normal; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
@@ -187,6 +188,28 @@
 .vp-save:hover { background: var(--rausch-active); }
 .vp-preview-link { display: inline-block; margin-left: 14px; font-size: 0.86rem; }
 
+/* who's coming */
+.vp-guest { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--hairline-soft); padding: 12px 0; margin-bottom: 4px; }
+.vp-guest-avatar { width: 38px; height: 38px; flex-shrink: 0; display: grid; place-items: center; border-radius: var(--r-full); background: var(--ink); color: #fff; font-size: 0.78rem; font-weight: 700; }
+.vp-guest-main { flex: 1; min-width: 150px; }
+.vp-guest-main b { display: block; font-size: 0.98rem; font-weight: 600; }
+.vp-guest-main span { font-size: 0.78rem; color: var(--muted); }
+.vp-guest-contact { text-align: right; }
+.vp-guest-contact a { display: block; font-size: 0.92rem; font-weight: 600; color: var(--ink); text-decoration: none; }
+.vp-guest-contact a:hover { color: var(--rausch); }
+.vp-guest-contact span { font-size: 0.74rem; color: var(--muted-soft); }
+
+/* custom-night editor under the calendar */
+.vp-day.custom { border-color: var(--rausch); }
+.vp-day.custom small { color: var(--rausch); font-weight: 700; }
+.vp-nightbox { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 16px 18px; margin-top: 16px; max-width: 640px; box-shadow: var(--shadow); }
+.vp-nightbox .vp-field { margin: 0; }
+.vp-nightbox-head { width: 100%; }
+.vp-nightbox-head b { font-size: 0.95rem; }
+.vp-nightbox-head span { display: block; font-size: 0.78rem; color: var(--muted); }
+.vp-night-clear { font-family: var(--font); font-size: 0.84rem; font-weight: 600; color: var(--muted); background: none; border: 0; cursor: pointer; padding: 11px 4px; }
+.vp-night-clear:hover { color: var(--error); }
+
 /* toast */
 .vp-toast {
   position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px);
@@ -236,7 +259,7 @@
 
   <!-- ============ CALENDAR ============ -->
   <section class="vp-pane" id="pane-calendar">
-    <div class="vp-greet"><h1>Availability</h1><p>Tap a night to block it or reopen it. Nights with bookings can't be blocked.</p></div>
+    <div class="vp-greet"><h1>Availability and custom nights</h1><p>Tap a night to price it for a special event. Use Block night to close it entirely. Nights with bookings can't be blocked.</p></div>
     <div class="vp-calwrap" style="margin-top: 20px;">
       <div class="vp-calhead">
         <b id="vpCalMonth"></b>
@@ -253,6 +276,7 @@
         <span class="lg-blocked"><i></i>Blocked</span>
       </div>
     </div>
+    <div class="vp-nightbox" id="vpNightBox"></div>
   </section>
 
   <!-- ============ PRICING ============ -->
@@ -341,8 +365,8 @@ $("vpTabs").addEventListener("click", (e) => {
 
 /* ---- today ---- */
 const REQS = [
-  { id: "r1", who: "Maya R.", pkg: "VIP booth", table: "B2", price: 1560, dep: 390, night: "Fri, Jul 24", time: "10:00 PM", party: 12, occasion: "Birthday", sign: "Maya's Golden Hour", extras: "", pay: "Apple Pay", decided: null },
-  { id: "r2", who: "Devon K.", pkg: "Full venue buyout", table: "", price: 8050, dep: 1610, night: "Sat, Aug 1", time: "9:00 PM", party: 180, occasion: "Company party", sign: "", extras: "2× Dancefloor table added", pay: "Card ····4242", decided: null },
+  { id: "r1", who: "Maya Ruiz", phone: "(407) 555-0184", code: "BK-ORL-9TM4", pkg: "VIP booth", table: "B2", price: 1560, dep: 390, night: "Fri, Jul 24", time: "10:00 PM", party: 12, occasion: "Birthday", sign: "Maya's Golden Hour", extras: "", pay: "Apple Pay", decided: null },
+  { id: "r2", who: "Devon Krishnan", phone: "(407) 555-0132", code: "BK-ORL-7QX2", pkg: "Full venue buyout", table: "", price: 8050, dep: 1610, night: "Sat, Aug 1", time: "9:00 PM", party: 180, occasion: "Company party", sign: "", extras: "2× Dancefloor table added", pay: "Card ····4242", decided: null },
 ];
 const LINEUP = [
   { time: "9:30 PM", who: "Jordan P. · 8 guests", pkg: "Dancefloor table D4", dep: "$185 paid" },
@@ -365,8 +389,13 @@ function renderReqs() {
   $("vpReqs").innerHTML = REQS.map((r) => `
     <div class="vp-req${r.decided ? " done" : ""}" id="req-${r.id}">
       <div class="vp-req-top">
-        <b>${r.who} · ${r.pkg}</b>
+        <b>${r.pkg}${r.table ? ` · Table ${r.table}` : ""}</b>
         <span class="vp-paid">Paid · ${r.pay}</span>
+      </div>
+      <div class="vp-guest">
+        <span class="vp-guest-avatar">${r.who.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
+        <div class="vp-guest-main"><b>${r.who}</b><span>${r.party} guests · ${r.occasion} · ${r.code}</span></div>
+        <div class="vp-guest-contact"><a href="tel:${r.phone.replace(/[^0-9+]/g, "")}">${r.phone}</a><span>Paid with ${r.pay}</span></div>
       </div>
       <div class="vp-req-grid">
         <div class="vp-cell"><small>Night</small><b>${r.night} · ${r.time}</b></div>
@@ -374,6 +403,7 @@ function renderReqs() {
         <div class="vp-cell"><small>Night total</small><b>$${r.price.toLocaleString()}</b></div>
         <div class="vp-cell"><small>Deposit collected</small><b>$${r.dep.toLocaleString()}</b></div>
         ${r.table ? `<div class="vp-cell"><small>Table</small><b>${r.table} · picked on the floor map</b></div>` : ""}
+        <div class="vp-cell"><small>Booked by</small><b>${r.who} · ${r.phone}</b></div>
         ${r.extras ? `<div class="vp-cell"><small>Added</small><b>${r.extras}</b></div>` : ""}
         ${r.sign ? `<div class="vp-cell"><small>LED sign</small><b>"${r.sign}"</b></div>` : ""}
       </div>
@@ -392,7 +422,7 @@ function renderReqs() {
       const r = REQS.find((x) => x.id === b.dataset.id);
       r.decided = b.dataset.act;
       renderReqs(); renderStats();
-      toast(r.decided === "ok" ? `${r.who} is confirmed. They just got the text.` : `${r.who} was refunded in full.`);
+      toast(r.decided === "ok" ? `${r.who} is confirmed. They just got the text at ${r.phone}.` : `${r.who} was refunded in full.`);
     })
   );
 }
@@ -437,6 +467,48 @@ function nightPrice(dt) {
   return Math.round((base * f) / 25) * 25;
 }
 
+const customNights = {}; // iso -> exact table price for that night
+
+// the night the promoter is editing under the calendar
+let pickedIso = null;
+
+function renderNightBox() {
+  const box = $("vpNightBox");
+  if (!pickedIso) {
+    box.innerHTML = `<div class="vp-nightbox-head"><b>Pick a night above</b><span>Set a one-off price for New Year's Eve, a guest DJ, or a holiday. Every other night keeps your base prices with automatic demand pricing.</span></div>`;
+    return;
+  }
+  const dt = new Date(pickedIso + "T12:00:00");
+  const auto = nightPrice(dt);
+  const cur = customNights[pickedIso];
+  box.innerHTML = `
+    <div class="vp-nightbox-head">
+      <b>${dt.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</b>
+      <span>${cur ? `Custom price set. Normally ${"$" + auto} that night.` : `Automatic price is ${"$" + auto}. Set your own below.`}</span>
+    </div>
+    <label class="vp-field" style="max-width: 200px;"><span>Table price this night</span>
+      <input type="number" step="25" min="0" id="vpNightPrice" placeholder="${auto}" value="${cur != null ? cur : ""}" />
+    </label>
+    <button type="button" class="vp-save" id="vpNightSave">Save night</button>
+    ${cur != null ? `<button type="button" class="vp-night-clear" id="vpNightClear">Back to automatic</button>` : ""}
+    <button type="button" class="vp-night-clear" id="vpNightBlock">${blocked.has(pickedIso) ? "Reopen night" : "Block night"}</button>`;
+
+  $("vpNightSave").addEventListener("click", () => {
+    const val = parseInt($("vpNightPrice").value, 10);
+    if (Number.isFinite(val) && val > 0) { customNights[pickedIso] = val; toast(`Night priced at $${val}. Customers see it on that date only.`); }
+    else { delete customNights[pickedIso]; toast("Night is back to automatic pricing."); }
+    renderCal(); renderNightBox();
+  });
+  const clr = $("vpNightClear");
+  if (clr) clr.addEventListener("click", () => { delete customNights[pickedIso]; renderCal(); renderNightBox(); toast("Night is back to automatic pricing."); });
+  $("vpNightBlock").addEventListener("click", () => {
+    if (bookedDays[pickedIso] && !blocked.has(pickedIso)) { toast("That night has bookings. Handle those first."); return; }
+    if (blocked.has(pickedIso)) { blocked.delete(pickedIso); toast("Night reopened. Customers can book it again."); }
+    else { blocked.add(pickedIso); toast("Night blocked. It won't show as bookable."); }
+    renderCal(); renderNightBox();
+  });
+}
+
 function renderCal() {
   seedBookings(calY, calM);
   const first = new Date(calY, calM, 1);
@@ -450,20 +522,19 @@ function renderCal() {
     const past = iso < todayIso;
     const bk = bookedDays[iso] || 0;
     const isBlocked = blocked.has(iso);
-    html += `<button type="button" class="vp-day${past ? " past" : ""}${isBlocked ? " blocked" : ""}" data-iso="${iso}" ${past ? "disabled" : ""}>
+    const custom = customNights[iso];
+    html += `<button type="button" class="vp-day${past ? " past" : ""}${isBlocked ? " blocked" : ""}${custom != null ? " custom" : ""}${iso === pickedIso ? " on" : ""}" data-iso="${iso}" ${past ? "disabled" : ""}>
       <i>${d}</i>
-      <small>${isBlocked ? "Blocked" : "$" + nightPrice(dt)}</small>
+      <small>${isBlocked ? "Blocked" : "$" + (custom != null ? custom : nightPrice(dt))}</small>
       ${bk && !isBlocked ? `<span class="vp-bknum">${bk}</span>` : ""}
     </button>`;
   }
   $("vpCalGrid").innerHTML = html;
   $("vpCalGrid").querySelectorAll(".vp-day[data-iso]:not(.past)").forEach((b) =>
     b.addEventListener("click", () => {
-      const iso = b.dataset.iso;
-      if (bookedDays[iso] && !blocked.has(iso)) { toast("That night has bookings. Handle those first."); return; }
-      if (blocked.has(iso)) { blocked.delete(iso); toast("Night reopened. Customers can book it again."); }
-      else { blocked.add(iso); toast("Night blocked. It won't show as bookable."); }
+      pickedIso = b.dataset.iso; // tapping a night opens it in the editor below
       renderCal();
+      renderNightBox();
     })
   );
 }
@@ -520,7 +591,7 @@ function renderPkgs() {
 $("vpSaveListing").addEventListener("click", () => toast("Listing updated. It's live for customers."));
 $("vpAddPhoto").addEventListener("click", () => toast("Photo upload comes with the real portal (demo)"));
 
-renderStats(); renderReqs(); renderLineup(); renderCal(); renderPkgs();
+renderStats(); renderReqs(); renderLineup(); renderCal(); renderNightBox(); renderPkgs();
 </script>
 </body>
 </html>

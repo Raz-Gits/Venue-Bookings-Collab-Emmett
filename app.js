@@ -104,6 +104,15 @@ const state = {
 // the promoter edits a price, every customer surface re-derives from here instantly
 const PRICE_EDITS = {};
 
+// custom nights (venueId -> iso -> tier -> exact price): a promoter names an
+// exact price for a specific date (NYE, a guest DJ). It replaces the automatic
+// demand pricing for that night, package, and venue only.
+const DATE_PRICE_EDITS = {};
+
+// demo customer profile: in production this comes from the verified account
+// (or the Apple Pay contact card), never from typing at checkout
+const DEMO_CUSTOMER = { name: "Riley Carter", phone: "(407) 555-0184" };
+
 // set prices/packages each venue lists upfront (book-and-approve model)
 // sign: "included" = LED table sign comes with it · "addon" = +$50, billed at the venue
 function venuePackages(v) {
@@ -253,7 +262,24 @@ function pkgTypeBase(v, type) {
   const list = venuePackages(v).filter((p) => p.type === type);
   return Math.min(...list.map((p) => p.price));
 }
-function priceForNight(base, iso) { return roundTo(base * demandFactor(iso), 25); }
+// a custom night set by the venue wins; otherwise the automatic demand engine prices it
+function priceForNight(base, iso, v, tier) {
+  const custom = v && tier && DATE_PRICE_EDITS[v.id] && DATE_PRICE_EDITS[v.id][iso];
+  if (custom && custom[tier] != null) return custom[tier];
+  return roundTo(base * demandFactor(iso), 25);
+}
+function tierOf(p) { return p.id.split("-").pop(); }
+// what one package costs at one venue on one night
+function pkgPrice(v, p, iso) { return priceForNight(p.price, iso, v, tierOf(p)); }
+// the cheapest package of a type at a venue on a night (the "from" price)
+function typeMinOn(v, type, iso) {
+  return Math.min(...venuePackages(v).filter((p) => p.type === type).map((p) => pkgPrice(v, p, iso)));
+}
+// does this venue price this night by hand?
+function isCustomNight(v, iso) {
+  const d = DATE_PRICE_EDITS[v.id];
+  return !!(d && d[iso] && Object.keys(d[iso]).length);
+}
 
 const $ = (id) => document.getElementById(id);
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -480,7 +506,7 @@ function nightWord() {
 
 // one card per venue; the price line follows the Tables / Full venues filter
 function bookCard(v) {
-  const min = priceForNight(pkgTypeBase(v, state.filter), state.date);
+  const min = typeMinOn(v, state.filter, state.date);
   const priceLine = state.filter === "table" ? `Tables from ${usd.format(min)}` : `Full venue from ${usd.format(min)}`;
   return `<article class="pcard" data-id="${v.id}">
     <div class="pcard-photo" style="${photoBg(v, 0)}">
@@ -534,11 +560,10 @@ function renderCompare() {
 
   // each venue's cheapest night in the window, priced for the chosen type
   const rows = matchedVenues().map((v) => {
-    const base = pkgTypeBase(v, type);
     const best = nights.reduce((acc, iso) => {
-      const p = priceForNight(base, iso);
+      const p = typeMinOn(v, type, iso);
       return p < acc.price ? { iso, price: p } : acc;
-    }, { iso: nights[0], price: priceForNight(base, nights[0]) });
+    }, { iso: nights[0], price: typeMinOn(v, type, nights[0]) });
     return { v, night: best.iso, price: best.price, deposit: roundTo(best.price * 0.2, 10) };
   }).sort((a, b) => a.price - b.price);
 
@@ -800,7 +825,10 @@ function renderVenue() {
   $("vbGuestClose").addEventListener("click", closePanels);
   $("vbCheapest").addEventListener("click", () => {
     const { start, end } = compareWindow();
-    state.date = cheapestNight(start, end);
+    // real cheapest for this venue: custom nights count, not just the demand curve
+    const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
+    const priceOn = (iso) => (p ? pkgPrice(v, p, iso) : typeMinOn(v, state.filter, iso));
+    state.date = nightsInRange(start, end, 60).reduce((best, iso) => (priceOn(iso) < priceOn(best) ? iso : best), start);
     state.nightPicked = true;
     $("fDate").value = state.date;
     const [y, m] = state.date.split("-").map(Number);
@@ -938,7 +966,7 @@ function renderFloor() {
           const taken = tableTaken(v, state.date, t.id);
           const sel = state.tableId === t.id;
           const pk = packageById(v, `${v.id}-${t.tier}`);
-          const tip = `${t.id} · ${TIER_NAME[t.tier]}${taken ? " · taken" : ` · ${usd.format(priceForNight(pk.price, state.date))} for ${fmtShort(state.date)}`}`;
+          const tip = `${t.id} · ${TIER_NAME[t.tier]}${taken ? " · taken" : ` · ${usd.format(pkgPrice(v, pk, state.date))} for ${fmtShort(state.date)}`}`;
           return `<button type="button"
             class="floor-t ${t.shape}${sel ? " sel" : ""}${taken ? " taken" : ""}"
             style="left:${t.x}%;top:${t.y}%;width:${t.w}%;${t.shape === "booth" ? `height:${t.h}%;` : ""}"
@@ -975,7 +1003,7 @@ function renderAddons() {
       </div>
       ${tables.map((t) => {
         const qty = state.addons[t.id] || 0;
-        const each = priceForNight(t.price, state.date);
+        const each = pkgPrice(v, t, state.date);
         return `<div class="addon${qty ? " has" : ""}">
           <div class="addon-main">
             <b>${t.name}</b>
@@ -1022,11 +1050,12 @@ function renderVenueCalendar() {
     const iso = isoOf(new Date(calY, calM, d));
     const today = iso === todayIso;
     if (iso < todayIso) { cells += `<div class="cal-cell past"><span class="cal-num">${d}</span></div>`; continue; }
-    const total = priceForNight(base, iso);
-    const deal = demandFactor(iso) <= minF * 1.0001;
+    const custom = isCustomNight(v, iso); // the venue priced this night by hand
+    const total = p ? pkgPrice(v, p, iso) : typeMinOn(v, state.type, iso);
+    const deal = !custom && demandFactor(iso) <= minF * 1.0001;
     const eb = Math.round(earlyBirdDiscount(iso) * 100);
     const inRange = ranged && iso >= r.start && iso <= r.end;
-    const tag = deal ? `<span class="cal-tag">Deal</span>` : eb >= 5 ? `<span class="cal-tag early">-${eb}%</span>` : "";
+    const tag = custom ? `<span class="cal-tag">Special</span>` : deal ? `<span class="cal-tag">Deal</span>` : eb >= 5 ? `<span class="cal-tag early">-${eb}%</span>` : "";
     cells += `<button type="button" class="cal-cell${showP ? " priced" : ""}${state.nightPicked && iso === state.date ? " is-picked" : ""}${showP && deal ? " is-deal" : ""}${inRange ? " in-range" : ""}${today ? " is-today" : ""}" data-iso="${iso}">
       ${showP ? `<span class="cal-dot lvl-${demandLabel(iso).toLowerCase()}"></span>` : ""}
       <span class="cal-num">${d}</span>
@@ -1062,9 +1091,9 @@ function renderVenueCalendar() {
 // the venue's cheapest upcoming night, for the "From $X / night" header before a night is picked
 function venueFromPrice(v) {
   const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
-  const base = p ? p.price : pkgTypeBase(v, state.filter);
   const { start, end } = compareWindow();
-  return priceForNight(base, cheapestNight(start, end));
+  const priceOn = (iso) => (p ? pkgPrice(v, p, iso) : typeMinOn(v, state.filter, iso));
+  return nightsInRange(start, end, 60).reduce((min, iso) => Math.min(min, priceOn(iso)), Infinity);
 }
 
 // the docked booking card: "From" until a night is picked, then the real price for that night
@@ -1079,7 +1108,7 @@ function updateBookCard() {
     $("vbDep").textContent = cb ? "Pick your night to see the exact price" : "Choose what to book, then pick your night";
     $("bfRequest").disabled = true;
   } else if (!cb) {
-    const from = priceForNight(pkgTypeBase(v, state.filter), state.date);
+    const from = typeMinOn(v, state.filter, state.date);
     $("vbPrice").innerHTML = `<b>from ${usd.format(from)}</b> <span>for ${fmtDate(state.date)}</span>`;
     $("vbDep").textContent = "Choose what to book on the left";
     $("bfRequest").disabled = true;
@@ -1107,14 +1136,14 @@ function currentBooking() {
   const v = venueById(state.currentVenueId);
   const p = state.selectedPkgId ? packageById(v, state.selectedPkgId) : null;
   if (!p) return null;
-  const base = priceForNight(p.price, state.date);
+  const base = pkgPrice(v, p, state.date);
   let deposit = (base * p.depPct) / 100;
   const addons = [];
   if (p.type === "buyout") {
     for (const t of venuePackages(v).filter((x) => x.type === "table")) {
       const qty = state.addons[t.id] || 0;
       if (!qty) continue;
-      const each = priceForNight(t.price, state.date);
+      const each = pkgPrice(v, t, state.date);
       addons.push({ id: t.id, name: t.name, qty, each, line: each * qty });
       deposit += (each * qty * t.depPct) / 100; // each table keeps its own deposit rate
     }
@@ -1216,6 +1245,9 @@ function submitBooking(method = "card") {
     state.booking = {
       venueId: v.id,
       venueName: v.name,
+      // who's coming: the venue sees the full name and a number they can call
+      guestName: DEMO_CUSTOMER.name,
+      guestPhone: DEMO_CUSTOMER.phone,
       pkg: p,
       addons,
       table: cb.table, // the exact table picked on the floor map (null for buyouts)
@@ -1389,6 +1421,7 @@ function bindPromoterApp() {
   $("pSkip").addEventListener("click", enterPromoterHome);
   $("pLogout").addEventListener("click", () => showScreen("city"));
   // back and forth between the two sides, without logging out
+  bindPDates();
   $("pToCustomer").addEventListener("click", () => { renderRows(); showScreen("browse"); });
   $("btnForVenues").addEventListener("click", () => {
     if (PROMOTER.venue) enterPromoterHome(); // already "logged in": straight to the dashboard
@@ -1411,7 +1444,73 @@ function initPromoterHome() {
   renderPStats();
   renderPReqs();
   renderPPricing();
+  renderPDates();
   renderPRecent();
+}
+
+/* ---- custom nights: name an exact price for one date (NYE, a guest DJ) ---- */
+
+// the date the promoter is editing in the custom-night row
+let pDateIso = "";
+
+function renderPDates() {
+  const v = PROMOTER.venue;
+  if (!$("pDateList") || !v) return;
+  if (!pDateIso) pDateIso = isoAddDays(isoOf(new Date()), 14);
+  $("pDateInput").value = pDateIso;
+  $("pDateInput").min = isoOf(new Date());
+
+  // the two prices that matter most, kept deliberately short: a table and the venue
+  const editable = venuePackages(v).filter((p) => p.id.endsWith("-t3") || p.id.endsWith("-b1"));
+  const cur = (DATE_PRICE_EDITS[v.id] || {})[pDateIso] || {};
+  $("pDateFields").innerHTML = editable.map((p) => {
+    const tier = tierOf(p);
+    const auto = roundTo(p.price * demandFactor(pDateIso), 25);
+    return `<label class="p-date-field">
+      <span>${p.name}</span>
+      <span class="p-price-in"><span>$</span><input type="number" step="25" min="0" placeholder="${auto}" value="${cur[tier] != null ? cur[tier] : ""}" data-dtier="${tier}" aria-label="${p.name} price for this night" /></span>
+      <small>${cur[tier] != null ? `normally ${usd.format(auto)}` : `auto: ${usd.format(auto)}`}</small>
+    </label>`;
+  }).join("");
+
+  const all = DATE_PRICE_EDITS[v.id] || {};
+  const isos = Object.keys(all).filter((k) => Object.keys(all[k]).length).sort();
+  $("pDateList").innerHTML = isos.length
+    ? isos.map((iso) => {
+        const names = Object.keys(all[iso]).map((t) => `${venuePackages(v).find((p) => tierOf(p) === t).name} ${usd.format(all[iso][t])}`).join(" · ");
+        return `<div class="p-date-row">
+          <div><b>${fmtDate(iso)}</b><span>${names}</span></div>
+          <button type="button" class="btn-textlink" data-clear="${iso}">Remove</button>
+        </div>`;
+      }).join("")
+    : `<p class="p-date-empty">No custom nights yet. Every other night uses your base prices with automatic demand pricing.</p>`;
+
+  $("pDateList").querySelectorAll("[data-clear]").forEach((b) =>
+    b.addEventListener("click", () => {
+      delete DATE_PRICE_EDITS[v.id][b.dataset.clear];
+      renderPDates();
+      toast("Custom night removed. That date is back to automatic pricing.");
+    })
+  );
+}
+
+function bindPDates() {
+  $("pDateInput").addEventListener("change", (e) => { pDateIso = e.target.value; renderPDates(); });
+  $("pDateSave").addEventListener("click", () => {
+    const v = PROMOTER.venue;
+    if (!v || !pDateIso) return;
+    const night = {};
+    $("pDateFields").querySelectorAll("input[data-dtier]").forEach((inp) => {
+      const val = parseInt(inp.value, 10);
+      if (Number.isFinite(val) && val > 0) night[inp.dataset.dtier] = val;
+    });
+    const store = (DATE_PRICE_EDITS[v.id] = DATE_PRICE_EDITS[v.id] || {});
+    if (Object.keys(night).length) store[pDateIso] = night; else delete store[pDateIso];
+    renderPDates();
+    toast(Object.keys(night).length
+      ? `${fmtDate(pDateIso)} priced. Customers see it on that night only.`
+      : `${fmtDate(pDateIso)} is back to automatic pricing.`);
+  });
 }
 
 // the promoter edits base prices for their club; PRICE_EDITS feeds venuePackages,
@@ -1452,15 +1551,20 @@ function buildPRequests() {
       addons: b.addons || [],
       table: b.table || null,
       sign: b.sign || null,
+      guest: { name: b.guestName, phone: b.guestPhone, code: b.code, pay: b.payMethod === "applepay" ? "Apple Pay" : "Card ····4242" },
       status: b.status === "pending" ? "open" : b.status, // open | confirmed | declined
       isNew: true,
     });
   }
   list.push(
     { id: "s1", title: "Full venue buyout", type: "buyout", party: 120, date: "Sat, Aug 22", time: "10:00 PM", occasion: "Corporate", price: 17000, deposit: 3550,
-      addons: [{ name: "VIP booth", qty: 2, each: 1500, line: 3000 }], status: "open", isNew: true },
+      addons: [{ name: "VIP booth", qty: 2, each: 1500, line: 3000 }],
+      guest: { name: "Devon Krishnan", phone: "(407) 555-0132", code: "BK-ORL-7QX2", pay: "Card ····4242" },
+      status: "open", isNew: true },
     { id: "s2", title: "VIP booth", type: "table", party: 10, date: "Fri, Aug 14", time: "11:00 PM", occasion: "Bachelor / bachelorette", price: 1500, deposit: 375,
-      table: "B3", sign: { text: "Nick's Last Dance", price: 0 }, status: "open", isNew: false },
+      table: "B3", sign: { text: "Nick's Last Dance", price: 0 },
+      guest: { name: "Marisol Vega", phone: "(321) 555-0177", code: "BK-ORL-4KD9", pay: "Apple Pay" },
+      status: "open", isNew: false },
   );
   PROMOTER.requests = list;
 }
@@ -1527,9 +1631,24 @@ function pReqCard(r) {
     </div>`;
   }
 
+  // who's coming: full name and a number the venue can actually call
+  const g = r.guest;
+  const guest = g ? `
+    <div class="p-guest">
+      <span class="p-guest-avatar">${g.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
+      <div class="p-guest-main">
+        <b>${g.name}</b>
+        <span>${r.party} guests · ${r.occasion}${g.code ? ` · ${g.code}` : ""}</span>
+      </div>
+      <div class="p-guest-contact">
+        <a href="tel:${g.phone.replace(/[^0-9+]/g, "")}">${g.phone}</a>
+        <span>Paid with ${g.pay}</span>
+      </div>
+    </div>` : "";
+
   return `<div class="p-req ${r.status === "confirmed" ? "won" : ""}">
     <div class="p-req-head">${tag}<span class="p-req-title">${r.type === "buyout" ? "Full venue" : "Table"} request${r.live ? " · live" : ""}</span></div>
-    ${grid}${foot}</div>`;
+    ${guest}${grid}${foot}</div>`;
 }
 
 function decideReq(id, decision) {

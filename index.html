@@ -232,6 +232,18 @@
       <h2 class="p-section">Your prices</h2>
       <p class="p-hint">Base price per package for your club. Save a change and customers see it instantly, with nightly demand pricing on top.</p>
       <div class="p-pricing" id="pPricing"></div>
+
+      <h2 class="p-section">Custom nights</h2>
+      <p class="p-hint">Got a New Year's Eve or a guest DJ? Pick the date, set the price, done. Every other night keeps your base prices.</p>
+      <div class="p-datebox">
+        <div class="p-date-pick">
+          <label class="p-date-field"><span>Date</span><input type="date" id="pDateInput" /></label>
+          <div class="p-date-fields" id="pDateFields"></div>
+          <button type="button" class="btn-primary" id="pDateSave">Save this night</button>
+        </div>
+        <div class="p-date-list" id="pDateList"></div>
+      </div>
+
       <h2 class="p-section">Recent bookings</h2>
       <div class="p-recent" id="pRecent"></div>
     </div>

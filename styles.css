@@ -1049,6 +1049,53 @@ body {
   font-family: var(--font); font-size: 0.95rem; font-weight: 600; color: var(--ink);
   padding: 9px 4px; background: none;
 }
+
+/* who's coming: the venue sees a real name and a number they can call */
+.p-guest {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--hairline-soft);
+  padding-bottom: 12px; margin-bottom: 14px;
+}
+.p-guest-avatar {
+  width: 38px; height: 38px; flex-shrink: 0;
+  display: grid; place-items: center; border-radius: var(--r-full);
+  background: var(--ink); color: #fff; font-size: 0.78rem; font-weight: 700;
+}
+.p-guest-main { flex: 1; min-width: 140px; }
+.p-guest-main b { display: block; font-size: 0.98rem; font-weight: 600; }
+.p-guest-main span { font-size: 0.78rem; color: var(--muted); }
+.p-guest-contact { text-align: right; }
+.p-guest-contact a { display: block; font-size: 0.92rem; font-weight: 600; color: var(--ink); text-decoration: none; }
+.p-guest-contact a:hover { color: var(--rausch); }
+.p-guest-contact span { font-size: 0.74rem; color: var(--muted-soft); }
+
+/* custom nights: one date, one or two prices, saved */
+.p-datebox { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.p-date-pick {
+  display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
+  border: 1px solid var(--hairline); border-radius: var(--r-md);
+  padding: 16px 18px; box-shadow: var(--shadow);
+}
+.p-date-fields { display: contents; }
+.p-date-field { display: flex; flex-direction: column; gap: 5px; }
+.p-date-field > span { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); }
+.p-date-field small { font-size: 0.7rem; color: var(--muted-soft); }
+.p-date-field input[type="date"] {
+  font-family: var(--font); font-size: 0.92rem; font-weight: 500; color: var(--ink);
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  padding: 9px 10px; background: var(--canvas);
+}
+.p-date-pick .btn-primary { padding: 11px 18px; }
+.p-date-list { display: flex; flex-direction: column; gap: 8px; }
+.p-date-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  border: 1px solid var(--hairline-soft); border-radius: var(--r-sm);
+  padding: 11px 14px; background: var(--surface-soft);
+}
+.p-date-row b { display: block; font-size: 0.88rem; }
+.p-date-row span { font-size: 0.76rem; color: var(--muted); }
+.p-date-empty { font-size: 0.8rem; color: var(--muted-soft); padding: 4px 2px; }
+@media (max-width: 860px) { .p-datebox { grid-template-columns: 1fr; } }
 .p-req { border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 18px; }
 .p-req.won { border-color: var(--rausch); box-shadow: var(--shadow); }
 .p-req-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }

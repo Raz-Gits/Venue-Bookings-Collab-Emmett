@@ -60,6 +60,15 @@ quoting redundant. New features, all simulated in the demo:
 - **Bounce House (Oviedo) added as the lead venue**: first in browse with
   temp photos from eatdrinkbounce.com, since they're the first pitch target
   (`pitch: true` flag controls ordering).
+- **Custom nights**: a venue can name an exact price for one date (NYE, a
+  guest DJ) in "Custom nights"; `DATE_PRICE_EDITS` beats the demand engine for
+  that venue/date/package only, shows a "Special" tag in the customer
+  calendar, and every other night keeps automatic pricing. The portal
+  preview does the same by tapping a night on the availability calendar.
+- **Guest details on every booking**: full name, tap-to-call phone, party,
+  occasion, confirmation code, and payment method sit at the top of each
+  promoter request card. Demo data for now; in production this comes from
+  the verified account or the Apple Pay contact card, never typed at checkout.
 - **In-app promoter price editor**: the promoter dashboard has a "Your prices"
   section; edits go into a live override layer (`PRICE_EDITS`) that every
   customer surface re-derives from, so changing a price updates browse,
