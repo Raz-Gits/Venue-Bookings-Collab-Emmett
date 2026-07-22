@@ -839,7 +839,7 @@ function renderVenue() {
             <div class="vb-note" id="vbDep"></div>
             <button type="button" class="btn-primary btn-big" id="bfRequest" disabled>Book this night</button>
             <p class="vb-fine">Deposit charged now and credited to your bill. Refunded in full, instantly, if the club can't host you.</p>
-            <button type="button" class="btn-textlink vb-compare" id="vbCompare">Compare prices across venues</button>
+            <button type="button" class="btn-textlink vb-compare hidden" id="vbCompare">Compare prices across venues</button>
           </div>
         </aside>
       </div>
