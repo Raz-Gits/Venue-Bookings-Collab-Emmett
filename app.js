@@ -137,15 +137,15 @@ function venuePackages(v, iso) {
   const t = v.band, b = v.buyout;
   let list = [
     { id: v.id + "-t1", type: "table", name: "Standard table", price: roundTo(t[0], 25), depPct: 20, cap: "up to 6 guests", sign: "addon",
-      includes: ["Reserved table with bottle minimum", "Skip-the-line entry for your group"] },
+      includes: ["Reserved table", "Bottle minimum", "Skip the line"] },
     { id: v.id + "-t2", type: "table", name: "Dancefloor table", price: roundTo((t[0] + t[1]) / 2, 25), depPct: 20, cap: "up to 10 guests", sign: "addon",
-      includes: ["Prime table by the floor", "2 bottles and mixers included", "Skip-the-line entry"] },
+      includes: ["By the dancefloor", "2 bottles included", "Skip the line"] },
     { id: v.id + "-t3", type: "table", name: "VIP booth", price: roundTo(t[1], 25), depPct: 25, cap: "up to 15 guests", sign: "included",
-      includes: ["Best booth in the house", "Dedicated server all night", "Champagne on arrival", "Custom LED table sign"] },
+      includes: ["Best booth in the house", "Dedicated server", "Champagne on arrival", "LED sign"] },
     { id: v.id + "-b1", type: "buyout", name: "Full venue buyout", price: roundTo(b[0], 100), depPct: 20, cap: "whole venue", sign: "included",
-      includes: ["The entire venue for the night", "Your own guest list", "Dedicated event manager"] },
-    { id: v.id + "-b2", type: "buyout", name: "Premium buyout", price: roundTo(b[1], 100), depPct: 25, cap: "whole venue and extras", sign: "included",
-      includes: ["Entire venue and rooftop", "Custom production and staffing", "Security and coat check"] },
+      includes: ["The whole venue", "Your guest list", "Event manager"] },
+    { id: v.id + "-b2", type: "buyout", name: "Premium buyout", price: roundTo(b[1], 100), depPct: 25, cap: "whole venue + extras", sign: "included",
+      includes: ["Venue + rooftop", "Production and staffing", "Security and coat check"] },
   ].map((p) => ({ ...p, deposit: roundTo((p.price * p.depPct) / 100, 10) }));
   const o = PRICE_EDITS[v.id];
   if (o) for (const p of list) {
@@ -708,7 +708,7 @@ function renderPkgList() {
             <span class="pkg-top"><b>${p.name}</b><span class="pkg-cap">${p.cap}</span>${p.exact ? `<span class="pkg-special">Special night</span>` : ""}</span>
             <span class="pkg-inc">${p.includes.join(" · ")}</span>
           </span>
-          <span class="pkg-price"><b>${p.exact ? "" : "from "}${usd.format(pkgPrice(v, p, state.date))}</b><span>${p.exact ? `for ${fmtShort(state.date)}` : "price varies by night"}</span></span>
+          <span class="pkg-price"><b>${p.exact ? "" : "from "}${usd.format(pkgPrice(v, p, state.date))}</b><span>${p.exact ? `for ${fmtShort(state.date)}` : "varies by night"}</span></span>
         </button>`).join("")}
     </div>`).join("");
 
