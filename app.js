@@ -97,6 +97,7 @@ const state = {
   tableId: null,          // the exact table picked on the floor map (table bookings only)
   nightPicked: false,     // has the customer explicitly chosen a night? until then the card says "From"
   showCalPrices: false,   // nightly prices in the calendar cells are opt-in (Airbnb-quiet by default)
+  calType: "table",       // what the venue calendar prices per night: "table" | "buyout"
   booking: null,          // the live request-to-book: {venueId, pkg, ..., status}
 };
 
@@ -344,7 +345,7 @@ const roundTo = (n, step) => Math.round(n / step) * step;
 
   $("logoHome").addEventListener("click", resetAll);
   $("btnNewSearch").addEventListener("click", resetAll);
-  document.querySelectorAll(".btn-back").forEach((b) =>
+  document.querySelectorAll(".btn-back[data-back]").forEach((b) =>
     b.addEventListener("click", () => showScreen(b.dataset.back))
   );
 
@@ -649,6 +650,7 @@ function openVenue(id, opts = {}) {
   state.selectedPkgId = null;
   state.tableId = null;
   state.addons = {};
+  state.calType = state.type; // the calendar opens priced for what you're browsing
   syncNight();
   // dates chosen in browse (or a compare row) count as a picked night; otherwise the card opens on "From"
   state.nightPicked = opts.nightPicked !== undefined ? opts.nightPicked : !!(state.range.start && state.range.end);
@@ -800,8 +802,12 @@ function renderVenue() {
               <div class="vb-panel-inner"><div class="vb-panel-pad">
                 <div class="vb-calhead">
                   <b>Pick your night</b>
-                  <span class="vb-hint" id="vdDealsHint"></span>
+                  <div class="cal-type" id="vbCalType" role="group" aria-label="Price the calendar for">
+                    <button type="button" class="cal-type-opt" data-ct="table">Tables</button>
+                    <button type="button" class="cal-type-opt" data-ct="buyout">Full venue</button>
+                  </div>
                 </div>
+                <span class="vb-hint" id="vdDealsHint"></span>
                 <div class="vd-cal" id="vdCal"></div>
                 <div class="vb-calfoot">
                   <span class="vb-callinks">
@@ -880,6 +886,16 @@ function renderVenue() {
     state.showCalPrices = !state.showCalPrices;
     renderVenueCalendar();
   });
+  // the calendar's price lens: see cheap table nights vs cheap buyout nights.
+  // It never touches what you've selected, it only re-prices the cells.
+  $("vbCalType").querySelectorAll(".cal-type-opt").forEach((b) =>
+    b.addEventListener("click", () => {
+      if (state.calType === b.dataset.ct) return;
+      state.calType = b.dataset.ct;
+      state.showCalPrices = true; // flipping the lens means you want to see prices
+      renderVenueCalendar();
+    })
+  );
   $("vbCompare").addEventListener("click", openCompare);
   const bump = (d) => {
     state.party = Math.min(2000, Math.max(1, state.party + d));
@@ -914,6 +930,7 @@ function selectPackage(pkgId) {
   const v = venueById(state.currentVenueId);
   const p = packageById(v, pkgId, state.date);
   if (!p || p.type !== "buyout") state.addons = {}; // added tables only ride on a buyout
+  if (p) state.calType = p.type; // the calendar lens follows what you're actually booking
   syncTableToPkg(v, p); // auto-seat the best open table of this tier; map tap can change it
   renderVenueCalendar(); // prices update to the chosen package
   if (state.nightPicked) updateBookCardCalc(); // repricing an already-picked night gets the calculating beat too
@@ -1108,7 +1125,8 @@ function renderVenueCalendar() {
     const today = iso === todayIso;
     if (iso < todayIso) { cells += `<div class="cal-cell past"><span class="cal-num">${d}</span></div>`; continue; }
     const custom = isCustomNight(v, iso); // the venue priced this night by hand
-    const total = p ? pkgPrice(v, p, iso) : typeMinOn(v, state.type, iso);
+    // price the cell for the lens: your package when it matches, else the type's cheapest
+    const total = p && p.type === state.calType ? pkgPrice(v, p, iso) : typeMinOn(v, state.calType, iso);
     const deal = !custom && demandFactor(iso) <= minF * 1.0001;
     const eb = Math.round(earlyBirdDiscount(iso) * 100);
     const inRange = ranged && iso >= r.start && iso <= r.end;
@@ -1116,7 +1134,7 @@ function renderVenueCalendar() {
     cells += `<button type="button" class="cal-cell${showP ? " priced" : ""}${state.nightPicked && iso === state.date ? " is-picked" : ""}${showP && deal ? " is-deal" : ""}${inRange ? " in-range" : ""}${today ? " is-today" : ""}" data-iso="${iso}">
       ${showP ? `<span class="cal-dot lvl-${demandLabel(iso).toLowerCase()}"></span>` : ""}
       <span class="cal-num">${d}</span>
-      ${showP ? `<span class="cal-price">${compactMoney(total)}</span>${tag}` : ""}</button>`;
+      ${showP ? `<span class="cal-price">${total === Infinity ? "n/a" : compactMoney(total)}</span>${tag}` : ""}</button>`;
   }
 
   $("vdCal").innerHTML = calShell(calY, calM, cells);
@@ -1139,6 +1157,8 @@ function renderVenueCalendar() {
         : "Midweek and booking early cost less.");
   const sp = $("vbShowPrices");
   if (sp) sp.textContent = showP ? "Hide nightly prices" : "Show nightly prices";
+  const ct = $("vbCalType");
+  if (ct) ct.querySelectorAll(".cal-type-opt").forEach((b) => b.classList.toggle("on", b.dataset.ct === state.calType));
   renderPkgList(); // what's offered (and at what price) can change per night
   renderAddons(); // add-on table prices follow the picked night
   syncTableToPkg(v, p); // the night changed: re-roll table availability
@@ -2106,8 +2126,11 @@ function scrollChat() { const l = $("chatLog"); l.scrollTop = l.scrollHeight; }
 /* ---------- shared helpers ---------- */
 
 function showScreen(name) {
+  // resolve first: a bad name must never hide every screen (the white-screen bug)
+  const target = $("screen-" + name);
+  if (!target) return;
   document.querySelectorAll(".screen").forEach((s) => s.classList.add("hidden"));
-  $("screen-" + name).classList.remove("hidden");
+  target.classList.remove("hidden");
   const promoterMode = name === "plogin" || name === "phome";
   document.querySelector(".topbar").style.display = promoterMode ? "none" : "";
   window.scrollTo({ top: 0, behavior: "smooth" });

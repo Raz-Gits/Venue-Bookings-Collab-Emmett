@@ -1541,9 +1541,18 @@ body {
 .vb-panel .vd-cal { background: var(--canvas); border-radius: var(--r-sm); padding: 10px; }
 .vb-field .vb-chev { transition: transform 0.3s ease; }
 .vb-field.expanded .vb-chev { transform: translateY(-50%) rotate(180deg); }
-.vb-calhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.vb-calhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
 .vb-calhead b { font-weight: 600; font-size: 1rem; }
 .vb-calhead .vb-hint { margin: 0; }
+/* Tables / Full venue lens: re-prices the calendar cells, touches nothing else */
+.cal-type { display: inline-flex; border: 1px solid var(--hairline); border-radius: var(--r-full); padding: 2px; background: var(--canvas); }
+.cal-type-opt {
+  font-family: var(--font); font-size: 0.72rem; font-weight: 600; color: var(--muted);
+  background: none; border: 0; border-radius: var(--r-full);
+  padding: 4px 11px; cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.cal-type-opt:hover { color: var(--ink); }
+.cal-type-opt.on { background: var(--ink); color: #fff; }
 .vb-calfoot { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hairline-soft); }
 .vb-callinks { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 
