@@ -325,7 +325,7 @@ const roundTo = (n, step) => Math.round(n / step) * step;
    with Supabase realtime in Phase 2 (two DEVICES still can't see each other).
    NOTE: this block must stay ABOVE the boot IIFE that calls initSync(), or the
    consts sit in their temporal dead zone at boot and the whole app dies. */
-const SYNC_KEY = "bookout-sync-v1";
+const SYNC_KEY = "bookout-sync-v2"; // bumping the version orphans every old snapshot
 const SYNC_FRESH_MS = 6 * 60 * 60 * 1000; // ignore snapshots older than 6h
 let syncBus = null;
 let applyingRemote = false;
@@ -366,6 +366,14 @@ function applySyncSnap(snap, silent) {
 // refresh whatever screen this tab is on
 function rerenderForSync(reason, silent) {
   const on = (id) => { const s = $("screen-" + id); return s && !s.classList.contains("hidden"); };
+  // the other side wiped the demo while we sat on a booking screen: start over
+  if (!state.booking && (on("pending") || on("confirm"))) {
+    clearInterval(pendingPoll);
+    renderRows();
+    showScreen("browse");
+    if (!silent) toast("Demo was reset. Book a fresh night.");
+    return;
+  }
   if (on("browse")) renderRows();
   if (on("compare")) renderCompare();
   if (on("venue") && state.currentVenueId) renderVenueCalendar();
@@ -380,6 +388,26 @@ function rerenderForSync(reason, silent) {
     if (!silent && reason === "booked" && state.booking) toast("New booking just paid. It's at the top.");
     if (!silent && reason === "extras" && state.booking) toast("The guest updated their booking details.");
   }
+}
+
+// wipe the demo everywhere: booking gone, price and night edits back to defaults,
+// every open tab returns to a clean slate ready for the next run-through
+function resetDemoData() {
+  clearInterval(pendingPoll);
+  state.booking = null;
+  replaceObj(PRICE_EDITS, {});
+  replaceObj(NIGHT_EDITS, {});
+  broadcastSync("reset"); // live tabs clear instantly
+  const ls = safeStorage();
+  if (ls) { try { ls.removeItem(SYNC_KEY); } catch (e) {} } // late tabs boot fresh
+  if (PROMOTER.venue) {
+    buildPRequests();
+    renderPStats();
+    renderPReqs();
+    renderPPricing();
+    renderPDates();
+  }
+  toast("Demo reset. Book a fresh night from the customer side.");
 }
 
 function initSync() {
@@ -1612,6 +1640,7 @@ function bindPromoterApp() {
   });
   $("pSaveListing").addEventListener("click", () => toast("Listing updated. It's live for customers."));
   $("pAddPhoto").addEventListener("click", () => toast("Photo upload comes with the real portal (demo)"));
+  $("pResetDemo").addEventListener("click", resetDemoData);
   $("btnForVenues").addEventListener("click", () => {
     if (PROMOTER.venue) enterPromoterHome(); // already "logged in": straight to the dashboard
     else showScreen("plogin");
