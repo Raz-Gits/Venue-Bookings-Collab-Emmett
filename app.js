@@ -334,21 +334,19 @@ const roundTo = (n, step) => Math.round(n / step) * step;
     r.setProperty("--y", e.clientY.toFixed(1));
   }, { passive: true });
 
-  bindCity();
-  bindBrowse();
-  bindWhen();
-  bindVenue();
-  bindReqModal();
-  bindPendingExtras();
-  bindPromoterApp();
-  bindGuestLogin();
-  bindChat();
+  // one broken bind (e.g. a mid-deploy page cached without some button) must
+  // never take the rest of the app down with it
+  for (const f of [bindCity, bindBrowse, bindWhen, bindVenue, bindReqModal, bindPendingExtras, bindPromoterApp, bindGuestLogin, bindChat]) {
+    try { f(); } catch (e) { console.warn(`BookOut: ${f.name} skipped:`, e); }
+  }
 
-  $("logoHome").addEventListener("click", resetAll);
-  $("btnNewSearch").addEventListener("click", resetAll);
-  document.querySelectorAll(".btn-back[data-back]").forEach((b) =>
-    b.addEventListener("click", () => showScreen(b.dataset.back))
-  );
+  try {
+    $("logoHome").addEventListener("click", resetAll);
+    $("btnNewSearch").addEventListener("click", resetAll);
+    document.querySelectorAll(".btn-back[data-back]").forEach((b) =>
+      b.addEventListener("click", () => showScreen(b.dataset.back))
+    );
+  } catch (e) { console.warn("BookOut: global binds skipped:", e); }
 
   renderGrid();
   initSync(); // after first render: a tab opened late catches up from the last snapshot
