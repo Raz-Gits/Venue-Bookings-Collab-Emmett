@@ -341,6 +341,7 @@ const roundTo = (n, step) => Math.round(n / step) * step;
   bindReqModal();
   bindPendingExtras();
   bindPromoterApp();
+  bindGuestLogin();
   bindChat();
 
   $("logoHome").addEventListener("click", resetAll);
@@ -350,7 +351,22 @@ const roundTo = (n, step) => Math.round(n / step) * step;
   );
 
   renderGrid();
+  initSync(); // after first render: a tab opened late catches up from the last snapshot
 })();
+
+// guest side of the two demo logins (the venue one lives on the promoter screen)
+function bindGuestLogin() {
+  const open = () => $("guestBackdrop").classList.remove("hidden");
+  const close = () => $("guestBackdrop").classList.add("hidden");
+  $("btnGuestLogin").addEventListener("click", open);
+  $("guestClose").addEventListener("click", close);
+  $("guestBackdrop").addEventListener("click", (e) => { if (e.target === $("guestBackdrop")) close(); });
+  $("gLogin").addEventListener("click", () => {
+    close();
+    $("btnGuestLogin").textContent = DEMO_CUSTOMER.name.split(" ")[0]; // "Log in" becomes "Riley"
+    toast(`Logged in as ${DEMO_CUSTOMER.name}. Bookings carry your name.`);
+  });
+}
 
 /* ---------- browse screen ---------- */
 
@@ -1242,8 +1258,8 @@ function bindReqModal() {
 
 function bindPendingExtras() {
   // time and occasion edits flow straight into the live booking
-  $("fTime").addEventListener("change", () => { if (state.booking) state.booking.time = state.time; });
-  $("fOccasion").addEventListener("change", () => { if (state.booking) state.booking.occasion = state.occasion; });
+  $("fTime").addEventListener("change", () => { if (state.booking) { state.booking.time = state.time; broadcastSync("extras"); } });
+  $("fOccasion").addEventListener("change", () => { if (state.booking) { state.booking.occasion = state.occasion; broadcastSync("extras"); } });
 
   $("signText").addEventListener("input", (e) => setBookingSign(e.target.value));
 
@@ -1269,6 +1285,7 @@ function setBookingSign(text) {
   if (!b) return;
   const t = (text || "").trim();
   b.sign = t ? { text: t, price: b.pkg.sign === "included" ? 0 : SIGN_PRICE } : null;
+  broadcastSync("extras"); // the sign shows up on the venue tab's request card as they type
 }
 
 // reset the extras form for a fresh booking
@@ -1355,6 +1372,7 @@ function submitBooking(method = "card") {
     renderPending();
     showScreen("pending");
     startPendingPoll();
+    broadcastSync("booked"); // the venue tab sees it land in real time
     toast(`Booked. ${v.name} is locking in your night.`);
   }, 900);
 }
@@ -1632,6 +1650,7 @@ function renderPNight() {
       } else if (extra) { inp.value = extra.price; return; } // an added item needs a price
       else delete e.price[tier];
       pruneNight(v.id, pDateIso);
+      broadcastSync("nights");
       renderPDates();
       toast(`${fmtDate(pDateIso)} updated. Customers see it on that night only.`);
     })
@@ -1643,6 +1662,7 @@ function renderPNight() {
       const i = e.extras.findIndex((x) => tierOf(x) === tier);
       if (i >= 0) e.extras.splice(i, 1); else { e.off[tier] = true; delete e.price[tier]; }
       pruneNight(v.id, pDateIso);
+      broadcastSync("nights");
       renderPDates();
       toast("Removed from that night. Customers won't see it.");
     })
@@ -1652,6 +1672,7 @@ function renderPNight() {
       const e = nightEdit(v.id, pDateIso, true);
       delete e.off[b.dataset.on];
       pruneNight(v.id, pDateIso);
+      broadcastSync("nights");
       renderPDates();
       toast("Back on the menu for that night.");
     })
@@ -1659,6 +1680,7 @@ function renderPNight() {
   const reset = $("pNightReset");
   if (reset) reset.addEventListener("click", () => {
     if (NIGHT_EDITS[v.id]) delete NIGHT_EDITS[v.id][pDateIso];
+    broadcastSync("nights");
     renderPDates();
     toast(`${fmtDate(pDateIso)} is back to automatic pricing.`);
   });
@@ -1674,6 +1696,7 @@ function renderPNight() {
       cap: type === "buyout" ? "whole venue" : "up to 10 guests",
       sign: "included", includes: [`One-off for ${fmtDate(pDateIso)}`, "Set by the venue"],
     });
+    broadcastSync("nights");
     renderPDates();
     toast(`${name} added to ${fmtDate(pDateIso)}.`);
   });
@@ -1701,6 +1724,7 @@ function renderPPricing() {
       const val = Math.max(0, parseInt(inp.value, 10) || 0);
       (PRICE_EDITS[v.id] = PRICE_EDITS[v.id] || {})[inp.dataset.tier] = val;
       renderPPricing();
+      broadcastSync("prices"); // a customer tab on browse re-prices live
       toast(`${v.name}: price saved. Customers see it now.`);
     })
   );
@@ -1827,6 +1851,7 @@ function decideReq(id, decision) {
   if (r.live && state.booking) state.booking.status = decision;
   renderPReqs();
   renderPStats();
+  broadcastSync("decided"); // the customer's tab flips to confirmed or refunded
   toast(decision === "confirmed" ? "Booking approved" : "Request declined");
 }
 
@@ -2165,4 +2190,83 @@ function toast(msg) {
   t.classList.remove("hidden");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.add("hidden"), 2600);
+}
+
+/* ---------- live sync: the customer tab and the venue tab see each other ----------
+   Same-browser demo realtime over BroadcastChannel + localStorage: book in one
+   tab, the Bounce House dashboard updates in the other, approve there and the
+   customer's screen flips. Two tabs, one browser; production replaces this
+   with Supabase realtime in Phase 2 (two DEVICES still can't see each other). */
+const SYNC_KEY = "bookout-sync-v1";
+const SYNC_FRESH_MS = 6 * 60 * 60 * 1000; // ignore snapshots older than 6h
+let syncBus = null;
+let applyingRemote = false;
+let lastSyncAt = 0;
+
+function replaceObj(target, src) {
+  for (const k of Object.keys(target)) delete target[k];
+  Object.assign(target, src || {});
+}
+
+// push this tab's shared state to every other tab
+function broadcastSync(reason) {
+  if (applyingRemote) return; // never echo a snapshot we just applied
+  const snap = { booking: state.booking, priceEdits: PRICE_EDITS, nightEdits: NIGHT_EDITS, reason, at: Date.now() };
+  lastSyncAt = snap.at;
+  if (typeof localStorage !== "undefined") {
+    try { localStorage.setItem(SYNC_KEY, JSON.stringify(snap)); } catch (e) { /* private mode etc. */ }
+  }
+  if (syncBus) { try { syncBus.postMessage(snap); } catch (e) {} }
+}
+
+function applySyncSnap(snap, silent) {
+  if (!snap || typeof snap !== "object" || !snap.at || snap.at === lastSyncAt) return;
+  if (Date.now() - snap.at > SYNC_FRESH_MS) return; // stale leftovers don't haunt the demo
+  lastSyncAt = snap.at;
+  applyingRemote = true;
+  state.booking = snap.booking || null;
+  replaceObj(PRICE_EDITS, snap.priceEdits);
+  replaceObj(NIGHT_EDITS, snap.nightEdits);
+  rerenderForSync(snap.reason, silent);
+  applyingRemote = false;
+}
+
+// refresh whatever screen this tab is on
+function rerenderForSync(reason, silent) {
+  const on = (id) => { const s = $("screen-" + id); return s && !s.classList.contains("hidden"); };
+  if (on("browse")) renderRows();
+  if (on("compare")) renderCompare();
+  if (on("venue") && state.currentVenueId) renderVenueCalendar();
+  if (on("pending")) renderPending(); // the 500ms poll then flips confirmed -> confirm screen
+  if (on("confirm") && state.booking) renderBookingConfirm();
+  if (on("phome")) {
+    buildPRequests();
+    renderPStats();
+    renderPReqs();
+    renderPPricing();
+    renderPDates();
+    if (!silent && reason === "booked" && state.booking) toast("New booking just paid. It's at the top.");
+    if (!silent && reason === "extras" && state.booking) toast("The guest updated their booking details.");
+  }
+}
+
+function initSync() {
+  if (typeof BroadcastChannel !== "undefined") {
+    syncBus = new BroadcastChannel(SYNC_KEY);
+    syncBus.onmessage = (e) => applySyncSnap(e.data, false);
+  }
+  if (window.addEventListener) {
+    // storage events reach tabs even without BroadcastChannel
+    window.addEventListener("storage", (e) => {
+      if (e.key !== SYNC_KEY || !e.newValue) return;
+      try { applySyncSnap(JSON.parse(e.newValue), false); } catch (err) {}
+    });
+  }
+  // a tab opened later catches up quietly from the last snapshot
+  if (typeof localStorage !== "undefined") {
+    try {
+      const saved = localStorage.getItem(SYNC_KEY);
+      if (saved) applySyncSnap(JSON.parse(saved), true);
+    } catch (e) {}
+  }
 }

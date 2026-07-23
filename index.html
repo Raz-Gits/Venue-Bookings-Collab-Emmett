@@ -18,6 +18,7 @@
     bookout<i>◈</i>
   </div>
   <div class="topbar-right">
+    <button type="button" class="btn-textlink" id="btnGuestLogin">Log in</button>
     <button type="button" class="btn-textlink" id="btnForVenues">For venues</button>
     <span class="badge-demo">Demo · bookings simulated</span>
   </div>
@@ -195,8 +196,8 @@
     <div class="plogin">
       <div class="plogin-card card">
         <div class="p-brand">bookout<i>◈</i> <b>for venues</b></div>
-        <h1 class="plogin-title">Promoter log in</h1>
-        <p class="plogin-sub">See incoming requests and send quotes for your venue.</p>
+        <h1 class="plogin-title">Bounce House management</h1>
+        <p class="plogin-sub">Log in to run your venue: paid bookings, prices, and your calendar.</p>
         <label class="field"><span>Email</span>
           <input type="email" id="pEmail" value="manager@eatdrinkbounce.com" /></label>
         <label class="field"><span>Password</span>
@@ -265,6 +266,21 @@
     </label>
     <button class="btn-primary btn-big" id="reqSubmit">Book this night <b id="reqDep"></b></button>
     <p class="modal-fine">Your deposit is charged now and credited toward your bill at the venue. The club locks in your booking on their end; in the rare case they can't host your night, you're refunded in full, instantly.</p>
+  </div>
+</div>
+
+<!-- ============ GUEST LOG IN (demo: autofilled) ============ -->
+<div class="modal-backdrop hidden" id="guestBackdrop">
+  <div class="modal card" role="dialog" aria-modal="true">
+    <button class="modal-x" id="guestClose">×</button>
+    <p class="modal-kicker">Guest log in</p>
+    <h3>Welcome back</h3>
+    <label class="field"><span>Email</span>
+      <input type="email" id="gEmail" value="riley.carter@gmail.com" /></label>
+    <label class="field"><span>Password</span>
+      <input type="password" id="gPass" value="demo1234" /></label>
+    <button class="btn-primary btn-big" id="gLogin">Log in</button>
+    <p class="modal-fine">Demo login, nothing is stored or sent. In production this is phone verification: a code by text, no password.</p>
   </div>
 </div>
 

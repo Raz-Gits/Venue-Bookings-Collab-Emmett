@@ -77,6 +77,15 @@ quoting redundant. New features, all simulated in the demo:
   customer surface re-derives from, so changing a price updates browse,
   compare, and booking instantly. Topbar links let you hop between the
   customer app and the venue side without logging out.
+- **Live two-tab sync**: BroadcastChannel + localStorage keep every open tab
+  of the demo in step. Book in a customer tab and the Bounce House dashboard
+  tab gets the request (and a toast) instantly; confirm there and the
+  customer's screen flips to confirmed; price and custom-night edits re-price
+  a browsing tab live. Same browser only: two devices still can't see each
+  other, that's Supabase realtime in Phase 2. Snapshots expire after 6 hours.
+- **Two autofilled demo logins**: a guest "Log in" in the topbar (Riley
+  Carter, becomes phone-code verification in production) and the venue login
+  reframed as "Bounce House management" with the manager email prefilled.
 - **Venue portal preview at `promoter.html`**: a standalone page showing venues
   their whole side: Today (paid bookings to confirm/decline, tonight's lineup),
   an availability calendar with night blocking, a pricing/packages editor,
