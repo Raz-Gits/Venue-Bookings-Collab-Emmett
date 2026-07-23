@@ -86,12 +86,14 @@ quoting redundant. New features, all simulated in the demo:
 - **Two autofilled demo logins**: a guest "Log in" in the topbar (Riley
   Carter, becomes phone-code verification in production) and the venue login
   reframed as "Bounce House management" with the manager email prefilled.
-- **Venue portal preview at `promoter.html`**: a standalone page showing venues
-  their whole side: Today (paid bookings to confirm/decline, tonight's lineup),
-  an availability calendar with night blocking, a pricing/packages editor,
-  earnings with the 10%-out-of-deposit flow and payout history, and a listing
-  editor. This is the second half of the sales pitch; it becomes the real
-  Supabase-backed dashboard in Phase 2.
+- **One venue dashboard, five tabs (merged 2026-07-22)**: the in-app live
+  dashboard absorbed the static portal concept's structure: Today (live
+  bookings + stats), Calendar (per-night editing), Pricing (live editor),
+  Earnings (sample payouts + the 10%-out-of-deposit flow, real once Stripe
+  lands), Listing (Bounce photos + copy editor). Live data stays live,
+  backend-dependent sections are labeled sample data. `promoter.html` remains
+  in the repo as the original design artifact but is no longer linked from
+  the app. This dashboard becomes the Supabase-backed portal in Phase 2.
 
 ## Decisions
 

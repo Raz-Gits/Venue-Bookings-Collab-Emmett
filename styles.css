@@ -1027,6 +1027,60 @@ body {
 .p-reqs { display: flex; flex-direction: column; gap: 14px; }
 .p-hint { font-size: 0.82rem; color: var(--muted); margin: -8px 0 14px; }
 
+/* dashboard tabs: one venue home, five panes */
+.p-tabs {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  padding: 10px clamp(16px, 5vw, 48px) 0;
+  border-bottom: 1px solid var(--hairline-soft);
+  background: var(--canvas);
+}
+.p-tab {
+  font-family: var(--font); font-size: 0.88rem; font-weight: 500; color: var(--muted);
+  background: none; border: 0; border-bottom: 2px solid transparent;
+  padding: 10px 14px 12px; cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.p-tab:hover { color: var(--ink); }
+.p-tab.on { color: var(--ink); font-weight: 600; border-bottom-color: var(--ink); }
+.p-pane { display: none; }
+.p-pane.on { display: block; }
+.p-pane .p-section:first-child { margin-top: 6px; }
+
+/* earnings pane (sample data until Stripe lands in Phase 3) */
+.p-payout {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  border: 1px solid var(--hairline); border-radius: var(--r-md);
+  padding: 20px 22px; box-shadow: var(--shadow); max-width: 640px;
+}
+.p-payout small { display: block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); }
+.p-payout b { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; }
+.p-payout span { display: block; font-size: 0.78rem; color: var(--muted); }
+.p-flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 14px; max-width: 640px; }
+.p-flow div { border: 1px solid var(--hairline-soft); border-radius: var(--r-sm); padding: 12px 14px; font-size: 0.78rem; color: var(--body); }
+.p-flow div b { display: block; font-size: 0.86rem; color: var(--ink); margin-bottom: 2px; }
+.p-paytable { width: 100%; max-width: 720px; border-collapse: collapse; font-size: 0.84rem; }
+.p-paytable th { text-align: left; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); padding: 8px 10px; border-bottom: 1px solid var(--hairline); }
+.p-paytable td { padding: 10px; border-bottom: 1px solid var(--hairline-soft); }
+.p-paidtag { font-size: 0.7rem; font-weight: 700; color: #0a7a3d; background: #e7f6ed; border-radius: var(--r-full); padding: 2px 9px; }
+
+/* listing pane */
+.p-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 20px; max-width: 720px; }
+.p-photo { aspect-ratio: 4 / 3; border-radius: var(--r-sm); background-size: cover; background-position: center; }
+.p-photo-add {
+  aspect-ratio: 4 / 3; border: 1.5px dashed var(--border-strong); border-radius: var(--r-sm);
+  display: grid; place-items: center; font-size: 0.78rem; font-weight: 600; color: var(--muted);
+  background: none; cursor: pointer; font-family: var(--font);
+}
+.p-photo-add:hover { border-color: var(--ink); color: var(--ink); }
+.p-lfield { display: block; margin-bottom: 14px; max-width: 560px; }
+.p-lfield span { display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); margin-bottom: 5px; }
+.p-lfield input, .p-lfield textarea {
+  width: 100%; font-family: var(--font); font-size: 0.92rem; color: var(--ink);
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  padding: 10px 12px; background: var(--canvas);
+}
+.p-lfield textarea { min-height: 84px; resize: vertical; }
+
 /* the promoter's live price editor: edits feed straight into customer pricing */
 .p-pricing { display: flex; flex-direction: column; gap: 10px; }
 .p-price-row {

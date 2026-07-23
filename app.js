@@ -1605,6 +1605,13 @@ function bindPromoterApp() {
   // back and forth between the two sides, without logging out
   bindPDates();
   $("pToCustomer").addEventListener("click", () => { renderRows(); showScreen("browse"); });
+  // dashboard tabs: Today / Calendar / Pricing / Earnings / Listing
+  $("pTabs").addEventListener("click", (e) => {
+    const btn = e.target.closest(".p-tab");
+    if (btn) showPTab(btn.dataset.pane);
+  });
+  $("pSaveListing").addEventListener("click", () => toast("Listing updated. It's live for customers."));
+  $("pAddPhoto").addEventListener("click", () => toast("Photo upload comes with the real portal (demo)"));
   $("btnForVenues").addEventListener("click", () => {
     if (PROMOTER.venue) enterPromoterHome(); // already "logged in": straight to the dashboard
     else showScreen("plogin");
@@ -1617,9 +1624,15 @@ function enterPromoterHome(e) {
   showScreen("phome");
 }
 
+function showPTab(pane) {
+  document.querySelectorAll("#pTabs .p-tab").forEach((t) => t.classList.toggle("on", t.dataset.pane === pane));
+  document.querySelectorAll(".p-pane").forEach((p) => p.classList.toggle("on", p.id === "ppane-" + pane));
+}
+
 function initPromoterHome() {
   // pinned to the pitch venue for now: this is the dashboard we demo to Bounce House
   PROMOTER.venue = venueById("bounce");
+  showPTab("today"); // every login starts on tonight's picture
   $("pVenueName").textContent = PROMOTER.venue.name;
   $("pGreet").textContent = `Welcome back, ${PROMOTER.venue.name}`;
   buildPRequests();

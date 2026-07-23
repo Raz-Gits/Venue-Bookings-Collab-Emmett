@@ -205,7 +205,6 @@
         <button class="btn-primary btn-big" id="pLogin">Log in</button>
         <button type="button" class="btn-textlink" id="pSkip">Skip for now (demo)</button>
         <p class="plogin-note">Demo login. No real account, nothing is stored or sent.</p>
-        <a class="btn-textlink" href="promoter.html">Portal design concept (static demo data)</a>
         <button type="button" class="btn-textlink plogin-back" id="pBackCustomer">Not a promoter? Back to booking</button>
       </div>
     </div>
@@ -218,31 +217,85 @@
       <div class="p-topbar-right">
         <span class="p-venue-name" id="pVenueName">Neon Garden</span>
         <button type="button" class="btn-textlink" id="pToCustomer">Customer app</button>
-        <a class="btn-textlink" href="promoter.html" title="Design concept with sample data; live bookings arrive here, not there">Portal concept (static)</a>
         <button type="button" class="btn-textlink" id="pLogout">Log out</button>
       </div>
     </div>
+    <nav class="p-tabs" id="pTabs">
+      <button type="button" class="p-tab on" data-pane="today">Today</button>
+      <button type="button" class="p-tab" data-pane="calendar">Calendar</button>
+      <button type="button" class="p-tab" data-pane="pricing">Pricing</button>
+      <button type="button" class="p-tab" data-pane="earnings">Earnings</button>
+      <button type="button" class="p-tab" data-pane="listing">Listing</button>
+    </nav>
     <div class="p-body">
-      <div class="p-greeting">
-        <h1 id="pGreet">Welcome back</h1>
-        <p>Here is what is coming in tonight.</p>
-      </div>
-      <div class="p-stats" id="pStats"></div>
-      <h2 class="p-section">Incoming requests</h2>
-      <div class="p-reqs" id="pReqs"></div>
-      <h2 class="p-section">Your prices</h2>
-      <p class="p-hint">Base price per package for your club. Save a change and customers see it instantly, with nightly demand pricing on top.</p>
-      <div class="p-pricing" id="pPricing"></div>
 
-      <h2 class="p-section">Your calendar</h2>
-      <p class="p-hint">Click a night to price it for a special event, pull items you're not offering, or add a one-off. Every other night keeps your base prices with automatic demand pricing.</p>
-      <div class="p-datebox">
-        <div class="p-cal" id="pCal"></div>
-        <div class="p-night" id="pNight"></div>
-      </div>
+      <section class="p-pane on" id="ppane-today">
+        <div class="p-greeting">
+          <h1 id="pGreet">Welcome back</h1>
+          <p>Here is what is coming in tonight.</p>
+        </div>
+        <div class="p-stats" id="pStats"></div>
+        <h2 class="p-section">Incoming requests</h2>
+        <div class="p-reqs" id="pReqs"></div>
+        <h2 class="p-section">Recent bookings</h2>
+        <div class="p-recent" id="pRecent"></div>
+      </section>
 
-      <h2 class="p-section">Recent bookings</h2>
-      <div class="p-recent" id="pRecent"></div>
+      <section class="p-pane" id="ppane-calendar">
+        <h2 class="p-section">Your calendar</h2>
+        <p class="p-hint">Click a night to price it for a special event, pull items you're not offering, or add a one-off. Every other night keeps your base prices with automatic demand pricing.</p>
+        <div class="p-datebox">
+          <div class="p-cal" id="pCal"></div>
+          <div class="p-night" id="pNight"></div>
+        </div>
+      </section>
+
+      <section class="p-pane" id="ppane-pricing">
+        <h2 class="p-section">Your prices</h2>
+        <p class="p-hint">Base price per package for your club. Save a change and customers see it instantly, with nightly demand pricing on top.</p>
+        <div class="p-pricing" id="pPricing"></div>
+      </section>
+
+      <section class="p-pane" id="ppane-earnings">
+        <h2 class="p-section">Earnings</h2>
+        <p class="p-hint">Sample numbers until payments go live: deposits land the next business day, and BookOut's 10% comes out of the deposit, never billed to you.</p>
+        <div class="p-payout">
+          <div><small>Next payout</small><b>$2,340</b><span>Tuesday · to Chase ····6821</span></div>
+          <div><small>This month</small><b>$11,970</b><span>14 bookings · $1,330 in BookOut fees</span></div>
+        </div>
+        <div class="p-flow">
+          <div><b>1 · Customer pays</b>Deposit charged the moment they book, card or Apple Pay.</div>
+          <div><b>2 · You confirm</b>Decline and they're refunded instantly, no charge to anyone.</div>
+          <div><b>3 · You get paid</b>Deposit minus 10% lands next business day. Balance settles at the venue.</div>
+        </div>
+        <h2 class="p-section">Recent payouts</h2>
+        <table class="p-paytable">
+          <thead><tr><th>Week</th><th>Bookings</th><th>Gross deposits</th><th>Fee</th><th>Payout</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Jul 13 to Jul 19</td><td>6</td><td><b>$2,600</b></td><td>$260</td><td><b>$2,340</b></td><td><span class="p-paidtag">On the way</span></td></tr>
+            <tr><td>Jul 6 to Jul 12</td><td>5</td><td><b>$2,150</b></td><td>$215</td><td><b>$1,935</b></td><td><span class="p-paidtag">Paid</span></td></tr>
+            <tr><td>Jun 29 to Jul 5</td><td>8</td><td><b>$4,300</b></td><td>$430</td><td><b>$3,870</b></td><td><span class="p-paidtag">Paid</span></td></tr>
+            <tr><td>Jun 22 to Jun 28</td><td>4</td><td><b>$1,700</b></td><td>$170</td><td><b>$1,530</b></td><td><span class="p-paidtag">Paid</span></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="p-pane" id="ppane-listing">
+        <h2 class="p-section">Your listing</h2>
+        <p class="p-hint">What customers see on your BookOut page. Edits go live instantly.</p>
+        <div class="p-photos">
+          <div class="p-photo" style="background-image: url('https://eatdrinkbounce.com/wp-content/uploads/2022/02/TYPICAL-755-1024x683.jpg')"></div>
+          <div class="p-photo" style="background-image: url('https://eatdrinkbounce.com/wp-content/uploads/2022/02/SliderInside.jpg')"></div>
+          <div class="p-photo" style="background-image: url('https://eatdrinkbounce.com/wp-content/uploads/2022/02/SliderOutside.jpg')"></div>
+          <button type="button" class="p-photo-add" id="pAddPhoto">+ Add photos</button>
+        </div>
+        <label class="p-lfield"><span>Venue name</span><input type="text" value="Bounce House" /></label>
+        <label class="p-lfield"><span>Neighborhood</span><input type="text" value="Oviedo, Orlando" /></label>
+        <label class="p-lfield"><span>Vibe tags</span><input type="text" value="Social house · Cocktails" /></label>
+        <label class="p-lfield"><span>About your venue</span><textarea>Bounce House is a social house in Oviedo, known for refined cocktails and a room that fills up fast. Reserve a table or take the whole place.</textarea></label>
+        <button type="button" class="btn-primary" id="pSaveListing">Save changes</button>
+      </section>
+
     </div>
   </section>
 
