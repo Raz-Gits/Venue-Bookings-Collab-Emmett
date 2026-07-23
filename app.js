@@ -318,6 +318,94 @@ const roundTo = (n, step) => Math.round(n / step) * step;
 
 /* ---------- boot ---------- */
 
+/* ---------- live sync: the customer tab and the venue tab see each other ----------
+   Same-browser demo realtime over BroadcastChannel + localStorage: book in one
+   tab, the Bounce House dashboard updates in the other, approve there and the
+   customer's screen flips. Two tabs, one browser; production replaces this
+   with Supabase realtime in Phase 2 (two DEVICES still can't see each other).
+   NOTE: this block must stay ABOVE the boot IIFE that calls initSync(), or the
+   consts sit in their temporal dead zone at boot and the whole app dies. */
+const SYNC_KEY = "bookout-sync-v1";
+const SYNC_FRESH_MS = 6 * 60 * 60 * 1000; // ignore snapshots older than 6h
+let syncBus = null;
+let applyingRemote = false;
+let lastSyncAt = 0;
+
+// localStorage access itself can throw (file://, blocked site data); never let it
+function safeStorage() {
+  try { return window.localStorage || null; } catch (e) { return null; }
+}
+
+function replaceObj(target, src) {
+  for (const k of Object.keys(target)) delete target[k];
+  Object.assign(target, src || {});
+}
+
+// push this tab's shared state to every other tab
+function broadcastSync(reason) {
+  if (applyingRemote) return; // never echo a snapshot we just applied
+  const snap = { booking: state.booking, priceEdits: PRICE_EDITS, nightEdits: NIGHT_EDITS, reason, at: Date.now() };
+  lastSyncAt = snap.at;
+  const ls = safeStorage();
+  if (ls) { try { ls.setItem(SYNC_KEY, JSON.stringify(snap)); } catch (e) { /* quota, private mode */ } }
+  if (syncBus) { try { syncBus.postMessage(snap); } catch (e) {} }
+}
+
+function applySyncSnap(snap, silent) {
+  if (!snap || typeof snap !== "object" || !snap.at || snap.at === lastSyncAt) return;
+  if (Date.now() - snap.at > SYNC_FRESH_MS) return; // stale leftovers don't haunt the demo
+  lastSyncAt = snap.at;
+  applyingRemote = true;
+  state.booking = snap.booking || null;
+  replaceObj(PRICE_EDITS, snap.priceEdits);
+  replaceObj(NIGHT_EDITS, snap.nightEdits);
+  rerenderForSync(snap.reason, silent);
+  applyingRemote = false;
+}
+
+// refresh whatever screen this tab is on
+function rerenderForSync(reason, silent) {
+  const on = (id) => { const s = $("screen-" + id); return s && !s.classList.contains("hidden"); };
+  if (on("browse")) renderRows();
+  if (on("compare")) renderCompare();
+  if (on("venue") && state.currentVenueId) renderVenueCalendar();
+  if (on("pending")) renderPending(); // the 500ms poll then flips confirmed -> confirm screen
+  if (on("confirm") && state.booking) renderBookingConfirm();
+  if (on("phome")) {
+    buildPRequests();
+    renderPStats();
+    renderPReqs();
+    renderPPricing();
+    renderPDates();
+    if (!silent && reason === "booked" && state.booking) toast("New booking just paid. It's at the top.");
+    if (!silent && reason === "extras" && state.booking) toast("The guest updated their booking details.");
+  }
+}
+
+function initSync() {
+  if (typeof BroadcastChannel !== "undefined") {
+    try {
+      syncBus = new BroadcastChannel(SYNC_KEY);
+      syncBus.onmessage = (e) => applySyncSnap(e.data, false);
+    } catch (e) { syncBus = null; }
+  }
+  if (window.addEventListener) {
+    // storage events reach tabs even without BroadcastChannel
+    window.addEventListener("storage", (e) => {
+      if (e.key !== SYNC_KEY || !e.newValue) return;
+      try { applySyncSnap(JSON.parse(e.newValue), false); } catch (err) {}
+    });
+  }
+  // a tab opened later catches up quietly from the last snapshot
+  const ls = safeStorage();
+  if (ls) {
+    try {
+      const saved = ls.getItem(SYNC_KEY);
+      if (saved) applySyncSnap(JSON.parse(saved), true);
+    } catch (e) {}
+  }
+}
+
 (function boot() {
   const d = new Date();
   d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7)); // next Friday
@@ -349,7 +437,7 @@ const roundTo = (n, step) => Math.round(n / step) * step;
   } catch (e) { console.warn("BookOut: global binds skipped:", e); }
 
   renderGrid();
-  initSync(); // after first render: a tab opened late catches up from the last snapshot
+  try { initSync(); } catch (e) { console.warn("BookOut: sync off:", e); } // demo works without realtime
 })();
 
 // guest side of the two demo logins (the venue one lives on the promoter screen)
@@ -2190,81 +2278,3 @@ function toast(msg) {
   toastTimer = setTimeout(() => t.classList.add("hidden"), 2600);
 }
 
-/* ---------- live sync: the customer tab and the venue tab see each other ----------
-   Same-browser demo realtime over BroadcastChannel + localStorage: book in one
-   tab, the Bounce House dashboard updates in the other, approve there and the
-   customer's screen flips. Two tabs, one browser; production replaces this
-   with Supabase realtime in Phase 2 (two DEVICES still can't see each other). */
-const SYNC_KEY = "bookout-sync-v1";
-const SYNC_FRESH_MS = 6 * 60 * 60 * 1000; // ignore snapshots older than 6h
-let syncBus = null;
-let applyingRemote = false;
-let lastSyncAt = 0;
-
-function replaceObj(target, src) {
-  for (const k of Object.keys(target)) delete target[k];
-  Object.assign(target, src || {});
-}
-
-// push this tab's shared state to every other tab
-function broadcastSync(reason) {
-  if (applyingRemote) return; // never echo a snapshot we just applied
-  const snap = { booking: state.booking, priceEdits: PRICE_EDITS, nightEdits: NIGHT_EDITS, reason, at: Date.now() };
-  lastSyncAt = snap.at;
-  if (typeof localStorage !== "undefined") {
-    try { localStorage.setItem(SYNC_KEY, JSON.stringify(snap)); } catch (e) { /* private mode etc. */ }
-  }
-  if (syncBus) { try { syncBus.postMessage(snap); } catch (e) {} }
-}
-
-function applySyncSnap(snap, silent) {
-  if (!snap || typeof snap !== "object" || !snap.at || snap.at === lastSyncAt) return;
-  if (Date.now() - snap.at > SYNC_FRESH_MS) return; // stale leftovers don't haunt the demo
-  lastSyncAt = snap.at;
-  applyingRemote = true;
-  state.booking = snap.booking || null;
-  replaceObj(PRICE_EDITS, snap.priceEdits);
-  replaceObj(NIGHT_EDITS, snap.nightEdits);
-  rerenderForSync(snap.reason, silent);
-  applyingRemote = false;
-}
-
-// refresh whatever screen this tab is on
-function rerenderForSync(reason, silent) {
-  const on = (id) => { const s = $("screen-" + id); return s && !s.classList.contains("hidden"); };
-  if (on("browse")) renderRows();
-  if (on("compare")) renderCompare();
-  if (on("venue") && state.currentVenueId) renderVenueCalendar();
-  if (on("pending")) renderPending(); // the 500ms poll then flips confirmed -> confirm screen
-  if (on("confirm") && state.booking) renderBookingConfirm();
-  if (on("phome")) {
-    buildPRequests();
-    renderPStats();
-    renderPReqs();
-    renderPPricing();
-    renderPDates();
-    if (!silent && reason === "booked" && state.booking) toast("New booking just paid. It's at the top.");
-    if (!silent && reason === "extras" && state.booking) toast("The guest updated their booking details.");
-  }
-}
-
-function initSync() {
-  if (typeof BroadcastChannel !== "undefined") {
-    syncBus = new BroadcastChannel(SYNC_KEY);
-    syncBus.onmessage = (e) => applySyncSnap(e.data, false);
-  }
-  if (window.addEventListener) {
-    // storage events reach tabs even without BroadcastChannel
-    window.addEventListener("storage", (e) => {
-      if (e.key !== SYNC_KEY || !e.newValue) return;
-      try { applySyncSnap(JSON.parse(e.newValue), false); } catch (err) {}
-    });
-  }
-  // a tab opened later catches up quietly from the last snapshot
-  if (typeof localStorage !== "undefined") {
-    try {
-      const saved = localStorage.getItem(SYNC_KEY);
-      if (saved) applySyncSnap(JSON.parse(saved), true);
-    } catch (e) {}
-  }
-}
