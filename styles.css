@@ -1046,40 +1046,44 @@ body {
 .p-pane.on { display: block; }
 .p-pane .p-section:first-child { margin-top: 6px; }
 
-/* earnings pane (sample data until Stripe lands in Phase 3) */
+/* earnings pane (sample data until Stripe lands in Phase 3): full-bleed like the other panes */
 .p-payout {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;
   border: 1px solid var(--hairline); border-radius: var(--r-md);
-  padding: 20px 22px; box-shadow: var(--shadow); max-width: 640px;
+  padding: 24px 26px; box-shadow: var(--shadow);
 }
-.p-payout small { display: block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); }
-.p-payout b { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; }
-.p-payout span { display: block; font-size: 0.78rem; color: var(--muted); }
-.p-flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 14px; max-width: 640px; }
-.p-flow div { border: 1px solid var(--hairline-soft); border-radius: var(--r-sm); padding: 12px 14px; font-size: 0.78rem; color: var(--body); }
-.p-flow div b { display: block; font-size: 0.86rem; color: var(--ink); margin-bottom: 2px; }
-.p-paytable { width: 100%; max-width: 720px; border-collapse: collapse; font-size: 0.84rem; }
-.p-paytable th { text-align: left; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); padding: 8px 10px; border-bottom: 1px solid var(--hairline); }
-.p-paytable td { padding: 10px; border-bottom: 1px solid var(--hairline-soft); }
-.p-paidtag { font-size: 0.7rem; font-weight: 700; color: #0a7a3d; background: #e7f6ed; border-radius: var(--r-full); padding: 2px 9px; }
+.p-payout > div + div { border-left: 1px solid var(--hairline-soft); padding-left: 24px; }
+.p-payout small { display: block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); margin-bottom: 2px; }
+.p-payout b { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; }
+.p-payout span { display: block; font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+.p-flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 16px; }
+.p-flow div { border: 1px solid var(--hairline-soft); border-radius: var(--r-md); padding: 16px 18px; font-size: 0.8rem; color: var(--body); line-height: 1.5; }
+.p-flow div b { display: block; font-size: 0.9rem; color: var(--ink); margin-bottom: 4px; }
+.p-paytable { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.p-paytable th { text-align: left; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); padding: 10px 12px; border-bottom: 1px solid var(--hairline); }
+.p-paytable td { padding: 13px 12px; border-bottom: 1px solid var(--hairline-soft); }
+.p-paytable td:last-child, .p-paytable th:last-child { text-align: right; }
+.p-paidtag { font-size: 0.7rem; font-weight: 700; color: #0a7a3d; background: #e7f6ed; border-radius: var(--r-full); padding: 3px 10px; white-space: nowrap; }
 
-/* listing pane */
-.p-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 20px; max-width: 720px; }
-.p-photo { aspect-ratio: 4 / 3; border-radius: var(--r-sm); background-size: cover; background-position: center; }
+/* listing pane: photos across the pane, short fields in two columns */
+.p-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.p-photo { aspect-ratio: 4 / 3; border-radius: var(--r-md); background-size: cover; background-position: center; box-shadow: var(--shadow); }
 .p-photo-add {
-  aspect-ratio: 4 / 3; border: 1.5px dashed var(--border-strong); border-radius: var(--r-sm);
-  display: grid; place-items: center; font-size: 0.78rem; font-weight: 600; color: var(--muted);
+  aspect-ratio: 4 / 3; border: 1.5px dashed var(--border-strong); border-radius: var(--r-md);
+  display: grid; place-items: center; font-size: 0.8rem; font-weight: 600; color: var(--muted);
   background: none; cursor: pointer; font-family: var(--font);
 }
 .p-photo-add:hover { border-color: var(--ink); color: var(--ink); }
-.p-lfield { display: block; margin-bottom: 14px; max-width: 560px; }
-.p-lfield span { display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); margin-bottom: 5px; }
+.p-lgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 20px; }
+.p-lfield { display: block; margin-bottom: 16px; }
+.p-lfield span { display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted-soft); margin-bottom: 6px; }
 .p-lfield input, .p-lfield textarea {
-  width: 100%; font-family: var(--font); font-size: 0.92rem; color: var(--ink);
+  width: 100%; font-family: var(--font); font-size: 0.94rem; color: var(--ink);
   border: 1px solid var(--border-strong); border-radius: var(--r-sm);
-  padding: 10px 12px; background: var(--canvas);
+  padding: 11px 13px; background: var(--canvas);
 }
-.p-lfield textarea { min-height: 84px; resize: vertical; }
+.p-lfield textarea { min-height: 96px; resize: vertical; }
+#ppane-listing .btn-primary { padding: 12px 26px; }
 
 /* the promoter's live price editor: edits feed straight into customer pricing */
 .p-pricing { display: flex; flex-direction: column; gap: 10px; }
