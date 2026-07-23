@@ -128,7 +128,7 @@ function pruneNight(vid, iso) {
 
 // demo customer profile: in production this comes from the verified account
 // (or the Apple Pay contact card), never from typing at checkout
-const DEMO_CUSTOMER = { name: "Riley Carter", phone: "(407) 555-0184" };
+const DEMO_CUSTOMER = { name: "Live Test", phone: "(407) 555-0184" };
 
 // set prices/packages each venue lists upfront (book-and-approve model)
 // sign: "included" = LED table sign comes with it · "addon" = +$50, billed at the venue
@@ -449,7 +449,7 @@ function bindGuestLogin() {
   $("guestBackdrop").addEventListener("click", (e) => { if (e.target === $("guestBackdrop")) close(); });
   $("gLogin").addEventListener("click", () => {
     close();
-    $("btnGuestLogin").textContent = DEMO_CUSTOMER.name.split(" ")[0]; // "Log in" becomes "Riley"
+    $("btnGuestLogin").textContent = DEMO_CUSTOMER.name.split(" ")[0]; // "Log in" becomes "Live"
     toast(`Logged in as ${DEMO_CUSTOMER.name}. Bookings carry your name.`);
   });
 }
@@ -1869,7 +1869,13 @@ function renderPRecent() {
 }
 
 function renderPReqs() {
-  $("pReqs").innerHTML = PROMOTER.requests.map(pReqCard).join("");
+  // the real booking leads, unmissable; canned demo rows sit below a divider
+  const live = PROMOTER.requests.filter((r) => r.live);
+  const canned = PROMOTER.requests.filter((r) => !r.live);
+  $("pReqs").innerHTML =
+    live.map(pReqCard).join("") +
+    (live.length && canned.length ? `<p class="p-canned-note">Earlier requests · demo data</p>` : "") +
+    canned.map(pReqCard).join("");
   PROMOTER.requests.forEach((r) => {
     const on = (id, ev, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(ev, fn); };
     on(`pApprove-${r.id}`, "click", () => decideReq(r.id, "confirmed"));
@@ -1881,6 +1887,7 @@ function renderPReqs() {
 function pReqCard(r) {
   const tag = r.status === "confirmed" ? `<span class="p-req-tag ok">Confirmed</span>`
     : r.status === "declined" ? `<span class="p-req-tag">Declined</span>`
+    : r.live ? `<span class="p-req-tag islive"><i class="pulse-dot"></i>LIVE · just came in</span>`
     : (r.isNew ? `<span class="p-req-tag new">New</span>` : "");
   const grid = `
     <div class="p-req-grid">
@@ -1924,7 +1931,7 @@ function pReqCard(r) {
       </div>
     </div>` : "";
 
-  return `<div class="p-req ${r.status === "confirmed" ? "won" : ""}">
+  return `<div class="p-req ${r.status === "confirmed" ? "won" : ""}${r.live && r.status === "open" ? " islive" : ""}">
     <div class="p-req-head">${tag}<span class="p-req-title">${r.type === "buyout" ? "Full venue" : "Table"} request${r.live ? " · live" : ""}</span></div>
     ${guest}${grid}${foot}</div>`;
 }
